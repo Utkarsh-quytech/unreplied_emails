@@ -43,18 +43,23 @@ def build_cards(emails):
         sender_name = email['sender']
         subject = email['subject']
         
-        # Create a card section with sender and subject
-        card_section = CardService.newCardSection() \
-            .setHeader('Unreplied Emails') \
-            .addWidget(CardService.newTextButton().setText(sender_name).setOnClickAction(CardService.newAction().setFunctionName('viewEmail').setParameters({'emailId': email['id']}))) \
-            .addWidget(CardService.newTextButton().setText(subject).setOnClickAction(CardService.newAction().setFunctionName('viewEmail').setParameters({'emailId': email['id']})))
+        # Create card body
+        card_body = {
+            "header": sender_name,
+            "sections": [
+                {
+                    "widgets": [
+                        {
+                            "textParagraph": {
+                                "text": subject
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
 
-        # Create a card with the card section
-        card = CardService.newCardBuilder() \
-            .addSection(card_section) \
-            .build()
-        
-        cards.append(card)
+        cards.append(card_body)
 
     return cards
 
