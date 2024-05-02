@@ -95,10 +95,11 @@ def get_unreplied_emails(gevent) -> List[EmailInfo]:
     except HttpError as e:
         raise HTTPException(status_code=500, detail="Failed to fetch unreplied emails.")
 
-@app.post("/homepage", response_model=List[EmailInfo], response_model_exclude_unset=True)
-async def homepage(gevent: models.GEvent):
+@app.post("/homepage", response_class=JSONResponse, response_model=None)
+async def homepage(gevent: models.GEvent) -> List[EmailInfo]:
     # Fetch unreplied emails
     unreplied_emails = get_unreplied_emails(gevent)
 
     return unreplied_emails
+
 
