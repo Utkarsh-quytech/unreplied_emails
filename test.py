@@ -81,4 +81,7 @@ def homepage(gevent: models.GEvent):
 
     # Build cards to display in the add-on
     cards = build_cards(quytech_emails)
-    return JSONResponse(status_code=200, content={"cards": cards})
+    render_actions = CardService.newActionResponseBuilder().build()
+    render_actions.actions.extend(cards)
+
+    return JSONResponse(status_code=200, content={"actionResponse": render_actions})
