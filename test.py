@@ -16,23 +16,26 @@ def get_gmail_service(access_token):
 
 # Function to retrieve unreplied emails asynchronously
 async def get_unreplied_emails_async(service):
-    # Implement your logic to fetch unreplied emails asynchronously
-    # For example, you can use Gmail API's history.list() method to get recent messages
-    # and check if they've been replied to.
-    # Here's a simplified example using the threads.list() method:
+    try:
+        # Implement your logic to fetch unreplied emails asynchronously
+        # For example, you can use Gmail API's history.list() method to get recent messages
+        # and check if they've been replied to.
+        # Here's a simplified example using the threads.list() method:
 
-    loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(None, service.users().threads().list, userId='me')
-    threads = response.get('threads', [])
-    unreplied_threads = []
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, service.users().threads().list, userId='me')
+        threads = response.get('threads', [])
+        unreplied_threads = []
 
-    for thread in threads:
-        thread_id = thread['id']
-        messages = await loop.run_in_executor(None, service.users().threads().get, userId='me', id=thread_id)
-        if not any('INBOX' in msg['labelIds'] for msg in messages['messages']):
-            unreplied_threads.append(thread)
+        for thread in threads:
+            thread_id = thread['id']
+            messages = await loop.run_in_executor(None, service.users().threads().get, userId='me', id=thread_id)
+            if not any('INBOX' in msg['labelIds'] for msg in messages['messages']):
+                unreplied_threads.append(thread)
 
-    return unreplied_threads
+        return unreplied_threads
+    except Exception as e:
+        return str(e)
 
 # Function to filter emails by domain
 def filter_by_domain(emails, domain):
@@ -68,6 +71,9 @@ async def background_task(gevent: models.GEvent, background_tasks: BackgroundTas
     # Retrieve unreplied emails asynchronously
     unreplied_threads = await get_unreplied_emails_async(service)
 
+    if isinstance(unreplied_threads, str):
+        return JSONResponse(status_code=500, content={"message": "Error occurred while fetching emails: " + unreplied_threads})
+
     # Filter emails from @quytech.com domain
     quytech_threads = filter_by_domain(unreplied_threads, "@quytech.com")
 
@@ -88,5 +94,3 @@ async def gateway_timeout_exception_handler(request, exc):
         status_code=504,
         content={"message": "Gateway Timeout: The server did not receive a timely response from the upstream server."}
     )
-
-
