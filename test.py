@@ -77,4 +77,6 @@ def homepage(gevent: models.GEvent):
 
     # Build cards to display in the add-on
     cards = build_cards(quytech_emails)
-    return cards
+
+    # Wrap cards in the expected message object
+    return {"message": "success", "data": cards}
