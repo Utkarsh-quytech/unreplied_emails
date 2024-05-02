@@ -4,7 +4,6 @@ from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
-from gapps.cardservice.utilities import decode_email
 
 app = FastAPI(title="Unreplied Emails Add-on")
 
@@ -63,9 +62,6 @@ def homepage(gevent: models.GEvent):
     # Retrieve unreplied emails
     unreplied_emails = get_unreplied_emails(service)
 
-    if not unreplied_emails:
-        return JSONResponse(status_code=200, content={"message": "No unreplied emails found"})
-
     if isinstance(unreplied_emails, str):
         return JSONResponse(status_code=500, content={"error": {"message": "Error occurred while fetching emails: " + unreplied_emails}})
 
@@ -77,4 +73,4 @@ def homepage(gevent: models.GEvent):
 
     # Build cards to display in the add-on
     cards = build_cards(quytech_emails)
-    return JSONResponse(status_code=200, content=cards)
+    return JSONResponse(status_code=200, content={"renderActions": {"actions": cards}})
