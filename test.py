@@ -1,65 +1,72 @@
-from typing import List
-from gapps.cardservice import models
-from fastapi.responses import JSONResponse
-from google.oauth2 import id_token
-from google.auth.transport import requests
+import google.oauth2.credentials
 from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from fastapi import FastAPI, HTTPException
-import logging
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from gapps import CardService
+from gapps.cardservice import models
+from gapps.cardservice.utilities import decode_email
 
-app = FastAPI()
+app = FastAPI(title="Unreplied Emails Add-on")
 
-logging.basicConfig(level=logging.DEBUG)
+# Function to authenticate and authorize the user
+def get_gmail_service(access_token):
+    creds = google.oauth2.credentials.Credentials(access_token)
+    return build('gmail', 'v1', credentials=creds)
 
-@app.get("/")
-async def root():
-    return {"message": "Welcome to Simple Demo App example"}
+# Function to retrieve unreplied emails
+def get_unreplied_emails(service):
+    # Implement your logic to fetch unreplied emails
+    # For example, you can use Gmail API's history.list() method to get recent messages
+    # and check if they've been replied to.
+    # Here's a simplified example using the threads.list() method:
+    unreplied_threads = []
+    response = service.users().threads().list(userId='me').execute()
+    threads = response.get('threads', [])
+    for thread in threads:
+        thread_id = thread['id']
+        messages = service.users().threads().get(userId='me', id=thread_id).execute()['messages']
+        if not any('INBOX' in msg['labelIds'] for msg in messages):
+            unreplied_threads.append(thread)
+    return unreplied_threads
 
-class EmailInfo:
-    def __init__(self, sender_name: str, subject: str):
-        self.sender_name = sender_name
-        self.subject = subject
+# Function to filter emails by domain
+def filter_by_domain(emails, domain):
+    return [email for email in emails if email['sender'].endswith(domain)]
 
-def get_unreplied_emails(gevent) -> List[EmailInfo]:
-    try:
-        # Authenticate with Gmail API
-        credentials = id_token.fetch_id_token(requests.Request(), gevent.authorizationEventObject.userIdToken)
-        service = build('gmail', 'v1', credentials=credentials)
+# Function to build cards to display in the add-on
+def build_cards(emails):
+    cards = []
+    for email in emails:
+        sender_name = email['sender']
+        subject = email['subject']
+        card_section1_decorated_text1 = CardService.newDecoratedText() \
+            .setText(sender_name) \
+            .setBottomLabel(subject)
 
-        # Fetch unreplied emails from @quytech.com
-        response = service.users().messages().list(userId='me', q="is:unread -in:sent from:me from:quytech.com").execute()
-        messages = response.get('messages', [])
+        card_section1 = CardService.newCardSection() \
+            .setHeader('Unreplied Emails') \
+            .addWidget(card_section1_decorated_text1)
 
-        unreplied_emails = []
-        for message in messages:
-            msg_id = message['id']
-            msg = service.users().messages().get(userId='me', id=msg_id).execute()
-            sender_name = next((header['value'] for header in msg['payload']['headers'] if header['name'] == 'From'), None)
-            subject = next((header['value'] for header in msg['payload']['headers'] if header['name'] == 'Subject'), None)
-            unreplied_emails.append(EmailInfo(sender_name=sender_name, subject=subject))
+        card = CardService.newCardBuilder() \
+            .addSection(card_section1) \
+            .build()
         
-        return unreplied_emails
+        cards.append(card)
 
-    except HttpError as e:
-        logging.error(f"HTTP error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch unreplied emails.")
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")
-        raise HTTPException(status_code=500, detail="An unexpected error occurred.")
+    return cards
 
+# Endpoint to retrieve and display unreplied emails from @quytech.com
 @app.post("/homepage", response_class=JSONResponse)
 async def homepage(gevent: models.GEvent):
-    try:
-        # Fetch unreplied emails
-        unreplied_emails = get_unreplied_emails(gevent)
+    access_token = gevent.authorizationEventObject.userOAuthToken
+    service = get_gmail_service(access_token)
 
-        # Convert EmailInfo objects to dictionaries
-        email_dicts = [{"sender_name": email.sender_name, "subject": email.subject} for email in unreplied_emails]
+    # Retrieve unreplied emails
+    unreplied_threads = get_unreplied_emails(service)
 
-        return email_dicts
-    except HTTPException as e:
-        return JSONResponse(content={"error": str(e)}, status_code=e.status_code)
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")
-        return JSONResponse(content={"error": "An unexpected error occurred."}, status_code=500)
+    # Filter emails from @quytech.com domain
+    quytech_threads = filter_by_domain(unreplied_threads, "@quytech.com")
+
+    # Build cards to display in the add-on
+    cards = build_cards(quytech_threads)
+    return cards
