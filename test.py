@@ -43,6 +43,7 @@ def build_cards(emails):
         sender_name = email['sender']
         subject = email['subject']
 
+        # Create card section with sender name and subject
         card_section1_decorated_text1 = CardService.newDecoratedText() \
             .setText(sender_name) \
             .setBottomLabel(subject)
@@ -50,6 +51,7 @@ def build_cards(emails):
         card_section1 = CardService.newCardSection() \
             .addWidget(card_section1_decorated_text1)
 
+        # Create a card with the card section
         card = CardService.newCardBuilder() \
             .addSection(card_section1) \
             .build()
@@ -68,7 +70,7 @@ def homepage(gevent: models.GEvent):
     unreplied_emails = get_unreplied_emails(service)
 
     if not unreplied_emails:
-        return JSONResponse(status_code=200, content={"renderActions": {"actions": [{"message": "No unreplied emails found"}]}})
+        return JSONResponse(status_code=200, content={"renderActions": {"actions": []}})
 
     if isinstance(unreplied_emails, str):
         return JSONResponse(status_code=500, content={"error": {"message": "Error occurred while fetching emails: " + unreplied_emails}})
