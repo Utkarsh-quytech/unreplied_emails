@@ -5,24 +5,26 @@ from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
 from gapps.cardservice.utilities import decode_email
+import asyncio
+from functools import partial
 
-app = FastAPI(title="Unreplied Emails Add-on")
+app = FastAPI(title="Unreplied Emails Add-on", timeout=600)
 
 # Function to authenticate and authorize the user
 def get_gmail_service(access_token):
     creds = google.oauth2.credentials.Credentials(access_token)
     return build('gmail', 'v1', credentials=creds)
 
-# Function to retrieve unreplied emails
-def get_unreplied_emails(service):
+# Function to retrieve unreplied emails asynchronously
+async def get_unreplied_emails_async(service):
     try:
-        response = service.users().threads().list(userId='me').execute(timeout=300)  # Increase timeout here
+        response = service.users().threads().list(userId='me').execute()
         threads = response.get('threads', [])
         unreplied_threads = []
 
         for thread in threads:
             thread_id = thread['id']
-            messages = service.users().threads().get(userId='me', id=thread_id).execute(timeout=300)  # Increase timeout here
+            messages = service.users().threads().get(userId='me', id=thread_id).execute()
             if not any('INBOX' in msg['labelIds'] for msg in messages['messages']):
                 unreplied_threads.append(thread)
 
@@ -64,8 +66,8 @@ async def homepage(gevent: models.GEvent):
     access_token = gevent.authorizationEventObject.userOAuthToken
     service = get_gmail_service(access_token)
 
-    # Retrieve unreplied emails
-    unreplied_threads = get_unreplied_emails(service)
+    # Retrieve unreplied emails asynchronously
+    unreplied_threads = await get_unreplied_emails_async(service)
 
     if isinstance(unreplied_threads, str):
         return JSONResponse(status_code=500, content={"error": {"message": "Error occurred while fetching emails: " + unreplied_threads}})
