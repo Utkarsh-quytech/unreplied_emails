@@ -8,7 +8,7 @@ from gapps.cardservice.utilities import decode_email
 import asyncio
 from functools import partial
 
-app = FastAPI(title="Unreplied Emails Add-on")
+app = FastAPI(middleware=[Middleware(TimeoutMiddleware, timeout_seconds=600)])
 
 # Function to authenticate and authorize the user
 def get_gmail_service(access_token):
