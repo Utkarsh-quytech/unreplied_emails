@@ -17,11 +17,6 @@ def get_gmail_service(access_token):
 # Function to retrieve unreplied emails asynchronously
 async def get_unreplied_emails_async(service):
     try:
-        # Implement your logic to fetch unreplied emails asynchronously
-        # For example, you can use Gmail API's history.list() method to get recent messages
-        # and check if they've been replied to.
-        # Here's a simplified example using the threads.list() method:
-
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(None, service.users().threads().list, userId='me')
         threads = response.get('threads', [])
@@ -72,7 +67,7 @@ async def background_task(gevent: models.GEvent, background_tasks: BackgroundTas
     unreplied_threads = await get_unreplied_emails_async(service)
 
     if isinstance(unreplied_threads, str):
-        return JSONResponse(status_code=500, content={"error": {"status": "500", "message": "Error occurred while fetching emails: " + unreplied_threads}})
+        return JSONResponse(status_code=500, content={"error": {"message": "Error occurred while fetching emails: " + unreplied_threads}})
 
     # Filter emails from @quytech.com domain
     quytech_threads = filter_by_domain(unreplied_threads, "@quytech.com")
@@ -92,5 +87,5 @@ async def homepage(gevent: models.GEvent, background_tasks: BackgroundTasks):
 async def gateway_timeout_exception_handler(request, exc):
     return JSONResponse(
         status_code=504,
-        content={"error": {"status": "504", "message": "Gateway Timeout: The server did not receive a timely response from the upstream server."}}
+        content={"error": {"message": "Gateway Timeout: The server did not receive a timely response from the upstream server."}}
     )
