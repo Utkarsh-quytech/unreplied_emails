@@ -53,7 +53,6 @@
 
 from typing import List
 from gapps.cardservice import models
-from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from google.oauth2 import id_token
 from google.auth.transport import requests
