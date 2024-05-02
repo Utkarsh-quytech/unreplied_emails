@@ -1,10 +1,9 @@
+from gapps.cardservice import models
 import google.oauth2.credentials
 from googleapiclient.discovery import build
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
 from gapps import CardService
-from gapps.cardservice import models
-from gapps.cardservice.utilities import decode_email
 
 app = FastAPI(title="Unreplied Emails Add-on")
 
@@ -16,7 +15,7 @@ def get_gmail_service(access_token):
 # Function to retrieve unreplied emails with domain @quytech.com
 def get_unreplied_emails(service):
     try:
-        response = service.users().messages().list(userId='me', maxResults=10).execute()
+        response = service.users().messages().list(userId='me', maxResults=100).execute()
         messages = response.get('messages', [])
         unreplied_emails = []
 
@@ -52,7 +51,7 @@ def build_cards(emails):
         
         cards.append(card)
 
-    return {"renderActions": {"actions": cards}}
+    return {"actionResponse": {"type": "UPDATE_CARD", "card": {"sections": cards}}}
 
 # Endpoint to retrieve unreplied emails with domain @quytech.com
 @app.post("/homepage", response_class=JSONResponse)
@@ -71,5 +70,6 @@ def homepage(gevent: models.GEvent):
             # Build cards to display in the add-on
             return JSONResponse(status_code=200, content=build_cards(quytech_emails))
     
-    # If no unreplied emails found or no unreplied emails from @quytech.com domain, return an empty list
-    return JSONResponse(status_code=200, content={"renderActions": {"actions": []}})
+    # If no unreplied emails found or no unreplied emails from @quytech.com domain, return an empty response
+    return JSONResponse(status_code=200, content={})
+
