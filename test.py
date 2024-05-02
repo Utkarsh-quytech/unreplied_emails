@@ -42,18 +42,30 @@ def build_cards(emails):
     for email in emails:
         sender_name = email['sender']
         subject = email['subject']
+        
+        # Create an icon image
+        icon_image = CardService.newIconImage().setIconUrl('https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.freepik.com%2Ffree-photos-vectors%2Fbutton&psig=AOvVaw11LaPqu_HGlFjKWw4qvcg1&ust=1714731332072000&source=images&cd=vfe&opi=89978449&ved=0CBIQjRxqFwoTCLDPiZHe7oUDFQAAAAAdAAAAABAE')
 
-        # Create card section with sender name and subject
-        card_section1_decorated_text1 = CardService.newDecoratedText() \
+        # Create a decorated text widget for sender name
+        sender_decorated_text = CardService.newDecoratedText() \
             .setText(sender_name) \
-            .setBottomLabel(subject)
+            .setBottomLabel('Sender')
 
-        card_section1 = CardService.newCardSection() \
-            .addWidget(card_section1_decorated_text1)
+        # Create a decorated text widget for subject
+        subject_decorated_text = CardService.newDecoratedText() \
+            .setText(subject) \
+            .setBottomLabel('Subject')
+
+        # Create a card section with sender and subject decorated texts
+        card_section = CardService.newCardSection() \
+            .setHeader('Unreplied Emails') \
+            .addWidget(sender_decorated_text) \
+            .addWidget(subject_decorated_text)
 
         # Create a card with the card section
         card = CardService.newCardBuilder() \
-            .addSection(card_section1) \
+            .addSection(card_section) \
+            .setHeader(icon_image) \
             .build()
         
         cards.append(card)
