@@ -42,22 +42,43 @@ def build_cards(emails):
     for email in emails:
         sender_name = email['sender']
         subject = email['subject']
+
+        # Creating a section for sender name and subject
+        card_section1_decorated_text1 = CardService.newDecoratedText() \
+            .setText(sender_name) \
+            .setBottomLabel(subject)
+
+        card_section1 = CardService.newCardSection() \
+            .setHeader('Unreplied Emails') \
+            .addWidget(card_section1_decorated_text1)
+
+        # Creating an image icon for the card
+        card_image_icon = CardService.newIconImage() \
+            .setIconUrl('https://example.com/email_icon.png')
+
+        # Creating a button for replying to the email
+        card_button = CardService.newTextButton() \
+            .setText('Reply') \
+            .setOnClickAction(CardService.newAction().setFunctionName('reply_to_email').setParameters({'email_id': email['id']}))
+
+        # Adding the image icon and button to the card
+        card_header = CardService.newCardHeader() \
+            .setTitle('New Email') \
+            .setSubtitle('Reply to the email') \
+            .setImageUrl('https://example.com/email_header.png') \
+            .setImageStyle(CardService.ImageStyle.SQUARE)
+
+        # Creating the final card
+        card = CardService.newCardBuilder() \
+            .setHeader(card_header) \
+            .addSection(card_section1) \
+            .setFixedFooter(card_button) \
+            .build()
         
-        # Create a new image widget with an avatar
-        avatar_icon = CardService.newIconImage().setIconUrl('https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.freepik.com%2Ffree-photos-vectors%2Fbutton&psig=AOvVaw01-WObWPY8NHtoerPUvDPo&ust=1714730922715000&source=images&cd=vfe&opi=89978449&ved=0CBIQjRxqFwoTCODMsM7c7oUDFQAAAAAdAAAAABAE')
-
-        # Create a decorated text widget with sender name and subject
-        sender_text = CardService.newDecoratedText().setText(sender_name).setBottomLabel(subject).setStartIcon(avatar_icon)
-
-        # Create a card section with the sender text
-        card_section = CardService.newCardSection().setHeader('Unreplied Emails').addWidget(sender_text)
-
-        # Create a card with the card section
-        card = CardService.newCardBuilder().addSection(card_section).build()
-
         cards.append(card)
 
     return cards
+
 
 
 # Background task to retrieve and display unreplied emails from @quytech.com
