@@ -51,7 +51,7 @@ def build_cards(emails):
         
         cards.append(card)
 
-    return cards
+    return {"renderActions": {"actions": cards}}
 
 # Endpoint to retrieve unreplied emails with domain @quytech.com
 @app.post("/homepage", response_class=JSONResponse)
@@ -68,8 +68,7 @@ def homepage(gevent: models.GEvent):
 
         if quytech_emails:
             # Build cards to display in the add-on
-            cards = build_cards(quytech_emails)
-            return JSONResponse(status_code=200, content=cards)
+            return JSONResponse(status_code=200, content=build_cards(quytech_emails))
     
     # If no unreplied emails found or no unreplied emails from @quytech.com domain, return an empty list
-    return JSONResponse(status_code=200, content=[])
+    return JSONResponse(status_code=200, content={"message": "No unreplied emails found"})
