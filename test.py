@@ -6,7 +6,6 @@ from gapps import CardService
 from gapps.cardservice import models
 from gapps.cardservice.utilities import decode_email
 import asyncio
-from functools import partial
 
 app = FastAPI(title="Unreplied Emails Add-on")
 
@@ -18,14 +17,13 @@ def get_gmail_service(access_token):
 # Function to retrieve unreplied emails asynchronously
 async def get_unreplied_emails_async(service):
     try:
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, partial(service.users().threads().list, userId='me'))
+        response = service.users().threads().list(userId='me').execute()
         threads = response.get('threads', [])
         unreplied_threads = []
 
         for thread in threads:
             thread_id = thread['id']
-            messages = await loop.run_in_executor(None, partial(service.users().threads().get, userId='me', id=thread_id))
+            messages = service.users().threads().get(userId='me', id=thread_id).execute()
             if not any('INBOX' in msg['labelIds'] for msg in messages['messages']):
                 unreplied_threads.append(thread)
 
