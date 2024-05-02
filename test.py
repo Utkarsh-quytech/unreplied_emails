@@ -47,18 +47,28 @@ def build_cards(emails):
     for email in emails:
         sender_name = email['sender']
         subject = email['subject']
-        card_section1_decorated_text1 = CardService.newDecoratedText() \
-            .setText(sender_name) \
-            .setBottomLabel(subject)
-
-        card_section1 = CardService.newCardSection() \
-            .setHeader('Unreplied Emails') \
-            .addWidget(card_section1_decorated_text1)
-
-        card = CardService.newCardBuilder() \
-            .addSection(card_section1) \
-            .build()
         
+        card_header = {
+            "title": "Unreplied Emails",
+            "subtitle": sender_name
+        }
+
+        card_sections = [
+            {
+                "header": "Subject",
+                "widgets": [
+                    {
+                        "textParagraph": {"text": subject}
+                    }
+                ]
+            }
+        ]
+
+        card = {
+            "header": card_header,
+            "sections": card_sections
+        }
+
         cards.append(card)
 
     return cards
