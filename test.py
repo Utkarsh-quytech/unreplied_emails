@@ -42,24 +42,27 @@ def build_cards(emails):
     for email in emails:
         sender_name = email['sender']
         subject = email['subject']
-        
-        # Create a card section with sender name and subject
-        card_section = CardService.newCardSection() \
-            .setHeader('Unreplied Emails') \
-            .addWidget(CardService.newTextParagraph().setText(f"Sender: {sender_name}")) \
-            .addWidget(CardService.newTextParagraph().setText(f"Subject: {subject}"))
+
+        # Create card section with sender name and subject
+        card_section1_decorated_text1 = CardService.newDecoratedText() \
+            .setText(sender_name) \
+            .setBottomLabel(subject)
+
+        card_section1 = CardService.newCardSection() \
+            .addWidget(card_section1_decorated_text1)
 
         # Create a card with the card section
         card = CardService.newCardBuilder() \
-            .addSection(card_section) \
+            .addSection(card_section1) \
             .build()
         
         cards.append(card)
 
     return cards
 
-# Background task to retrieve and display unreplied emails from @quytech.com
-async def background_task(gevent: models.GEvent, background_tasks: BackgroundTasks):
+# Endpoint to trigger background task for retrieving emails
+@app.post("/homepage", response_class=JSONResponse)
+async def homepage(gevent: models.GEvent):
     access_token = gevent.authorizationEventObject.userOAuthToken
     service = get_gmail_service(access_token)
 
@@ -75,12 +78,6 @@ async def background_task(gevent: models.GEvent, background_tasks: BackgroundTas
     # Build cards to display in the add-on
     cards = build_cards(quytech_threads)
     return {"renderActions": {"actions": cards}}
-
-# Endpoint to trigger background task for retrieving emails
-@app.post("/homepage", response_class=JSONResponse)
-async def homepage(gevent: models.GEvent, background_tasks: BackgroundTasks):
-    background_tasks.add_task(background_task, gevent, background_tasks)
-    return JSONResponse(content={}, status_code=200)
 
 # Handle 504 Gateway Timeout errors
 @app.exception_handler(504)
