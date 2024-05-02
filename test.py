@@ -21,14 +21,17 @@ async def get_unreplied_emails_async(service):
     # and check if they've been replied to.
     # Here's a simplified example using the threads.list() method:
 
-    unreplied_threads = []
-    response = await service.users().threads().list(userId='me').execute()
+    loop = asyncio.get_event_loop()
+    response = await loop.run_in_executor(None, service.users().threads().list, userId='me')
     threads = response.get('threads', [])
+    unreplied_threads = []
+
     for thread in threads:
         thread_id = thread['id']
-        messages = (await service.users().threads().get(userId='me', id=thread_id).execute())['messages']
-        if not any('INBOX' in msg['labelIds'] for msg in messages):
+        messages = await loop.run_in_executor(None, service.users().threads().get, userId='me', id=thread_id)
+        if not any('INBOX' in msg['labelIds'] for msg in messages['messages']):
             unreplied_threads.append(thread)
+
     return unreplied_threads
 
 # Function to filter emails by domain
