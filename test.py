@@ -70,7 +70,7 @@ def homepage(gevent: models.GEvent):
         if quytech_emails:
             # Build cards to display in the add-on
             cards = build_cards(quytech_emails)
-            return JSONResponse(status_code=200, content={"renderActions": {"actions": cards}})
+            return {"renderActions": {"actions": cards}}
     
     # If no unreplied emails found or no unreplied emails from @quytech.com domain, return an empty response
-    return JSONResponse(status_code=200, content={})
+    return {}
