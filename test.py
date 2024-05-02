@@ -52,4 +52,4 @@ async def homepage(gevent: models.GEvent):
         return email_dicts
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to process request.")
+        raise HTTPException(status_code=500, detail=f"Failed to process request: {e}")
