@@ -4,7 +4,6 @@ from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
-from gapps.cardservice.utilities import decode_email
 import asyncio
 
 app = FastAPI(title="Unreplied Emails Add-on")
@@ -47,28 +46,18 @@ def build_cards(emails):
     for email in emails:
         sender_name = email['sender']
         subject = email['subject']
+        card_section1_decorated_text1 = CardService.newDecoratedText() \
+            .setText(sender_name) \
+            .setBottomLabel(subject)
+
+        card_section1 = CardService.newCardSection() \
+            .setHeader('Unreplied Emails') \
+            .addWidget(card_section1_decorated_text1)
+
+        card = CardService.newCardBuilder() \
+            .addSection(card_section1) \
+            .build()
         
-        card_header = {
-            "title": "Unreplied Emails",
-            "subtitle": sender_name
-        }
-
-        card_sections = [
-            {
-                "header": "Subject",
-                "widgets": [
-                    {
-                        "textParagraph": {"text": subject}
-                    }
-                ]
-            }
-        ]
-
-        card = {
-            "header": card_header,
-            "sections": card_sections
-        }
-
         cards.append(card)
 
     return cards
@@ -82,25 +71,25 @@ async def background_task(gevent: models.GEvent, background_tasks: BackgroundTas
     unreplied_threads = await get_unreplied_emails_async(service)
 
     if isinstance(unreplied_threads, str):
-        return JSONResponse(status_code=500, content={"message": "Error occurred while fetching emails: " + unreplied_threads})
+        return JSONResponse(status_code=500, content={"error": {"message": "Error occurred while fetching emails: " + unreplied_threads}})
 
     # Filter emails from @quytech.com domain
     quytech_threads = filter_by_domain(unreplied_threads, "@quytech.com")
 
     # Build cards to display in the add-on
     cards = build_cards(quytech_threads)
-    return cards
+    return {"actionResponse": {"type": "RENDER_CARD", "actionItems": cards}}
 
 # Endpoint to trigger background task for retrieving emails
 @app.post("/homepage", response_class=JSONResponse)
 async def homepage(gevent: models.GEvent, background_tasks: BackgroundTasks):
     background_tasks.add_task(background_task, gevent, background_tasks)
-    return {"message": "Background task initiated"}
+    return {"actionResponse": {"type": "RENDER_ACTION_RESPONSE"}}
 
 # Handle 504 Gateway Timeout errors
 @app.exception_handler(504)
 async def gateway_timeout_exception_handler(request, exc):
     return JSONResponse(
         status_code=504,
-        content={"message": "Gateway Timeout: The server did not receive a timely response from the upstream server."}
+        content={"error": {"message": "Gateway Timeout: The server did not receive a timely response from the upstream server."}}
     )
