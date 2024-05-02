@@ -22,11 +22,11 @@ async def get_unreplied_emails_async(service):
     # Here's a simplified example using the threads.list() method:
 
     unreplied_threads = []
-    response = await service.users().threads().list(userId='me', maxResults=100).execute()
+    response = await service.users().threads().list(userId='me').execute()
     threads = response.get('threads', [])
     for thread in threads:
         thread_id = thread['id']
-        messages = (await service.users().threads().get(userId='me', id=thread_id, maxResults=100).execute())['messages']
+        messages = (await service.users().threads().get(userId='me', id=thread_id).execute())['messages']
         if not any('INBOX' in msg['labelIds'] for msg in messages):
             unreplied_threads.append(thread)
     return unreplied_threads
