@@ -16,7 +16,7 @@ def get_gmail_service(access_token):
 # Function to retrieve unreplied emails with domain @quytech.com
 def get_unreplied_emails(service):
     try:
-        response = service.users().messages().list(userId='me', maxResults=100).execute()
+        response = service.users().messages().list(userId='me', maxResults=10).execute()
         messages = response.get('messages', [])
         unreplied_emails = []
 
