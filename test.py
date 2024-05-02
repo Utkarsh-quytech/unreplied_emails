@@ -16,13 +16,13 @@ def get_gmail_service(access_token):
 # Function to retrieve unreplied emails
 def get_unreplied_emails(service):
     try:
-        response = service.users().threads().list(userId='me').execute(timeout=30)  # Increase timeout here
+        response = service.users().threads().list(userId='me').execute(timeout=300)  # Increase timeout here
         threads = response.get('threads', [])
         unreplied_threads = []
 
         for thread in threads:
             thread_id = thread['id']
-            messages = service.users().threads().get(userId='me', id=thread_id).execute(timeout=30)  # Increase timeout here
+            messages = service.users().threads().get(userId='me', id=thread_id).execute(timeout=300)  # Increase timeout here
             if not any('INBOX' in msg['labelIds'] for msg in messages['messages']):
                 unreplied_threads.append(thread)
 
