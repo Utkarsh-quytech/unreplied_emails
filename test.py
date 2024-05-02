@@ -32,10 +32,6 @@ def get_unreplied_emails(service):
     except Exception as e:
         return str(e)
 
-# Function to filter emails by domain
-def filter_by_domain(emails, domain):
-    return [email for email in emails if email['sender'].endswith(domain)]
-
 # Function to build cards to display in the add-on
 def build_cards(emails):
     cards = []
@@ -68,17 +64,17 @@ def homepage(gevent: models.GEvent):
     unreplied_emails = get_unreplied_emails(service)
 
     if not unreplied_emails:
-        return JSONResponse(status_code=200, content=[{"message": "No unreplied emails found"}])
+        return JSONResponse(status_code=200, content={"message": "No unreplied emails found"})
 
     if isinstance(unreplied_emails, str):
         return JSONResponse(status_code=500, content={"error": {"message": "Error occurred while fetching emails: " + unreplied_emails}})
 
     # Filter emails from @quytech.com domain
-    quytech_emails = filter_by_domain(unreplied_emails, "@quytech.com")
+    quytech_emails = [email for email in unreplied_emails if email['sender'].endswith('@quytech.com')]
 
     if not quytech_emails:
-        return JSONResponse(status_code=200, content=[{"message": "No unreplied emails from @quytech.com found"}])
+        return JSONResponse(status_code=200, content={"message": "No unreplied emails from @quytech.com found"})
 
     # Build cards to display in the add-on
     cards = build_cards(quytech_emails)
-    return JSONResponse(status_code=200, content={"renderActions": {"actions": cards}})
+    return JSONResponse(status_code=200, content=cards)
