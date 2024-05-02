@@ -42,21 +42,23 @@ def build_cards(emails):
     for email in emails:
         sender_name = email['sender']
         subject = email['subject']
-        card_section1_decorated_text1 = CardService.newDecoratedText() \
-            .setText(sender_name) \
-            .setBottomLabel(subject)
-
-        card_section1 = CardService.newCardSection() \
-            .setHeader('Unreplied Emails') \
-            .addWidget(card_section1_decorated_text1)
-
-        card = CardService.newCardBuilder() \
-            .addSection(card_section1) \
-            .build()
         
+        # Create a new image widget with an avatar
+        avatar_icon = CardService.newIconImage().setIconUrl('https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.freepik.com%2Ffree-photos-vectors%2Fbutton&psig=AOvVaw01-WObWPY8NHtoerPUvDPo&ust=1714730922715000&source=images&cd=vfe&opi=89978449&ved=0CBIQjRxqFwoTCODMsM7c7oUDFQAAAAAdAAAAABAE')
+
+        # Create a decorated text widget with sender name and subject
+        sender_text = CardService.newDecoratedText().setText(sender_name).setBottomLabel(subject).setStartIcon(avatar_icon)
+
+        # Create a card section with the sender text
+        card_section = CardService.newCardSection().setHeader('Unreplied Emails').addWidget(sender_text)
+
+        # Create a card with the card section
+        card = CardService.newCardBuilder().addSection(card_section).build()
+
         cards.append(card)
 
     return cards
+
 
 # Background task to retrieve and display unreplied emails from @quytech.com
 async def background_task(gevent: models.GEvent, background_tasks: BackgroundTasks):
