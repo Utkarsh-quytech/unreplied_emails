@@ -3,7 +3,6 @@ from googleapiclient.discovery import build
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
 from gapps import CardService
-from gapps.cardservice import models
 
 app = FastAPI(title="Unreplied Emails Add-on")
 
@@ -51,7 +50,7 @@ def build_cards(emails):
         
         cards.append(card)
 
-    return {"renderActions": {"actions": cards}}
+    return {"cards": cards}
 
 # Endpoint to retrieve unreplied emails with domain @quytech.com
 @app.post("/homepage", response_class=JSONResponse)
