@@ -6,8 +6,11 @@ from google.auth.transport import requests
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from fastapi import FastAPI, HTTPException
+import logging
 
 app = FastAPI()
+
+logging.basicConfig(level=logging.DEBUG)
 
 @app.get("/")
 async def root():
@@ -19,11 +22,11 @@ class EmailInfo:
         self.subject = subject
 
 def get_unreplied_emails(gevent) -> List[EmailInfo]:
-    # Authenticate with Gmail API
-    credentials = id_token.fetch_id_token(requests.Request(), gevent.authorizationEventObject.userIdToken)
-    service = build('gmail', 'v1', credentials=credentials)
-
     try:
+        # Authenticate with Gmail API
+        credentials = id_token.fetch_id_token(requests.Request(), gevent.authorizationEventObject.userIdToken)
+        service = build('gmail', 'v1', credentials=credentials)
+
         # Fetch unreplied emails from @quytech.com
         response = service.users().messages().list(userId='me', q="is:unread -in:sent from:me from:quytech.com").execute()
         messages = response.get('messages', [])
@@ -39,14 +42,24 @@ def get_unreplied_emails(gevent) -> List[EmailInfo]:
         return unreplied_emails
 
     except HttpError as e:
+        logging.error(f"HTTP error: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch unreplied emails.")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred.")
 
 @app.post("/homepage", response_class=JSONResponse)
 async def homepage(gevent: models.GEvent):
-    # Fetch unreplied emails
-    unreplied_emails = get_unreplied_emails(gevent)
+    try:
+        # Fetch unreplied emails
+        unreplied_emails = get_unreplied_emails(gevent)
 
-    # Convert EmailInfo objects to dictionaries
-    email_dicts = [{"sender_name": email.sender_name, "subject": email.subject} for email in unreplied_emails]
+        # Convert EmailInfo objects to dictionaries
+        email_dicts = [{"sender_name": email.sender_name, "subject": email.subject} for email in unreplied_emails]
 
-    return email_dicts
+        return email_dicts
+    except HTTPException as e:
+        return JSONResponse(content={"error": str(e)}, status_code=e.status_code)
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
+        return JSONResponse(content={"error": "An unexpected error occurred."}, status_code=500)
