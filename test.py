@@ -43,7 +43,6 @@ def build_cards(emails):
         sender_name = email['sender']
         subject = email['subject']
 
-        # Create card section with sender name and subject
         card_section1_decorated_text1 = CardService.newDecoratedText() \
             .setText(sender_name) \
             .setBottomLabel(subject)
@@ -51,7 +50,6 @@ def build_cards(emails):
         card_section1 = CardService.newCardSection() \
             .addWidget(card_section1_decorated_text1)
 
-        # Create a card with the card section
         card = CardService.newCardBuilder() \
             .addSection(card_section1) \
             .build()
@@ -66,7 +64,6 @@ def homepage(gevent: models.GEvent):
     access_token = gevent.authorizationEventObject.userOAuthToken
     service = get_gmail_service(access_token)
 
-    # Retrieve unreplied emails
     unreplied_emails = get_unreplied_emails(service)
 
     if not unreplied_emails:
@@ -75,9 +72,9 @@ def homepage(gevent: models.GEvent):
     if isinstance(unreplied_emails, str):
         return JSONResponse(status_code=500, content={"error": {"message": "Error occurred while fetching emails: " + unreplied_emails}})
 
-    # Filter emails from @quytech.com domain
     quytech_emails = filter_by_domain(unreplied_emails, "@quytech.com")
 
-    # Build cards to display in the add-on
     cards = build_cards(quytech_emails)
-    return JSONResponse(status_code=200, content=cards)
+
+    # Render the cards as part of the response
+    return {"renderActions": {"actions": cards}}
