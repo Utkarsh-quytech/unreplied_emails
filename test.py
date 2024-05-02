@@ -1,6 +1,6 @@
 import google.oauth2.credentials
 from googleapiclient.discovery import build
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
@@ -17,13 +17,14 @@ def get_gmail_service(access_token):
 # Function to retrieve unreplied emails asynchronously
 async def get_unreplied_emails_async(service):
     try:
-        response = service.users().threads().list(userId='me').execute()
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, lambda: service.users().threads().list(userId='me').execute())
         threads = response.get('threads', [])
         unreplied_threads = []
 
         for thread in threads:
             thread_id = thread['id']
-            messages = service.users().threads().get(userId='me', id=thread_id).execute()
+            messages = await loop.run_in_executor(None, lambda: service.users().threads().get(userId='me', id=thread_id).execute())
             if not any('INBOX' in msg['labelIds'] for msg in messages['messages']):
                 unreplied_threads.append(thread)
 
