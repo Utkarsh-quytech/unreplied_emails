@@ -1,11 +1,12 @@
 import google.oauth2.credentials
 from googleapiclient.discovery import build
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
 from gapps.cardservice.utilities import decode_email
 import asyncio
+from functools import partial
 
 app = FastAPI(title="Unreplied Emails Add-on")
 
@@ -18,13 +19,13 @@ def get_gmail_service(access_token):
 async def get_unreplied_emails_async(service):
     try:
         loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, service.users().threads().list, userId='me')
+        response = await loop.run_in_executor(None, partial(service.users().threads().list, userId='me'))
         threads = response.get('threads', [])
         unreplied_threads = []
 
         for thread in threads:
             thread_id = thread['id']
-            messages = await loop.run_in_executor(None, service.users().threads().get, userId='me', id=thread_id)
+            messages = await loop.run_in_executor(None, partial(service.users().threads().get, userId='me', id=thread_id))
             if not any('INBOX' in msg['labelIds'] for msg in messages['messages']):
                 unreplied_threads.append(thread)
 
@@ -78,11 +79,3 @@ async def homepage(gevent: models.GEvent):
     # Build cards to display in the add-on
     cards = build_cards(quytech_threads)
     return {"renderActions": {"actions": cards}}
-
-# Handle 504 Gateway Timeout errors
-@app.exception_handler(504)
-async def gateway_timeout_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=504,
-        content={"error": {"message": "Gateway Timeout: The server did not receive a timely response from the upstream server."}}
-    )
