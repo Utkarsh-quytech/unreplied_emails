@@ -20,7 +20,7 @@ def get_unreplied_emails(service):
     # and check if they've been replied to.
     # Here's a simplified example using the threads.list() method:
     unreplied_threads = []
-    response = service.users().threads().list(userId='me').execute()
+    response = service.users().threads().list(userId='me', maxResults=100).execute()
     threads = response.get('threads', [])
     for thread in threads:
         thread_id = thread['id']
