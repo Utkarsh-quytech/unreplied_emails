@@ -43,43 +43,22 @@ def build_cards(emails):
         sender_name = email['sender']
         subject = email['subject']
 
-        # Creating a section for sender name and subject
+        # Create card section with sender name and subject
         card_section1_decorated_text1 = CardService.newDecoratedText() \
             .setText(sender_name) \
             .setBottomLabel(subject)
 
         card_section1 = CardService.newCardSection() \
-            .setHeader('Unreplied Emails') \
             .addWidget(card_section1_decorated_text1)
 
-        # Creating an image icon for the card
-        card_image_icon = CardService.newIconImage() \
-            .setIconUrl('https://example.com/email_icon.png')
-
-        # Creating a button for replying to the email
-        card_button = CardService.newTextButton() \
-            .setText('Reply') \
-            .setOnClickAction(CardService.newAction().setFunctionName('reply_to_email').setParameters({'email_id': email['id']}))
-
-        # Adding the image icon and button to the card
-        card_header = CardService.newCardHeader() \
-            .setTitle('New Email') \
-            .setSubtitle('Reply to the email') \
-            .setImageUrl('https://example.com/email_header.png') \
-            .setImageStyle(CardService.ImageStyle.SQUARE)
-
-        # Creating the final card
+        # Create a card with the card section
         card = CardService.newCardBuilder() \
-            .setHeader(card_header) \
             .addSection(card_section1) \
-            .setFixedFooter(card_button) \
             .build()
         
         cards.append(card)
 
     return cards
-
-
 
 # Background task to retrieve and display unreplied emails from @quytech.com
 async def background_task(gevent: models.GEvent, background_tasks: BackgroundTasks):
