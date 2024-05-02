@@ -69,6 +69,9 @@ def homepage(gevent: models.GEvent):
     # Retrieve unreplied emails
     unreplied_emails = get_unreplied_emails(service)
 
+    if not unreplied_emails:
+        return JSONResponse(status_code=200, content={"message": "No unreplied emails found"})
+
     if isinstance(unreplied_emails, str):
         return JSONResponse(status_code=500, content={"error": {"message": "Error occurred while fetching emails: " + unreplied_emails}})
 
@@ -77,6 +80,4 @@ def homepage(gevent: models.GEvent):
 
     # Build cards to display in the add-on
     cards = build_cards(quytech_emails)
-
-    # Wrap cards in the expected message object
-    return {"message": "success", "data": cards}
+    return JSONResponse(status_code=200, content=cards)
