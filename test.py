@@ -5,28 +5,24 @@ from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
 from gapps.cardservice.utilities import decode_email
-from starlette.middleware import Middleware
-from starlette.middleware.timeout import TimeoutMiddleware
-import asyncio
-from functools import partial
 
-app = FastAPI(middleware=[Middleware(TimeoutMiddleware, timeout_seconds=600)])
+app = FastAPI(title="Unreplied Emails Add-on")
 
 # Function to authenticate and authorize the user
 def get_gmail_service(access_token):
     creds = google.oauth2.credentials.Credentials(access_token)
     return build('gmail', 'v1', credentials=creds)
 
-# Function to retrieve unreplied emails asynchronously
-async def get_unreplied_emails_async(service):
+# Function to retrieve unreplied emails
+def get_unreplied_emails(service):
     try:
-        response = service.users().threads().list(userId='me').execute()
+        response = service.users().threads().list(userId='me').execute(timeout=30)  # Increase timeout here
         threads = response.get('threads', [])
         unreplied_threads = []
 
         for thread in threads:
             thread_id = thread['id']
-            messages = service.users().threads().get(userId='me', id=thread_id).execute()
+            messages = service.users().threads().get(userId='me', id=thread_id).execute(timeout=30)  # Increase timeout here
             if not any('INBOX' in msg['labelIds'] for msg in messages['messages']):
                 unreplied_threads.append(thread)
 
@@ -68,8 +64,8 @@ async def homepage(gevent: models.GEvent):
     access_token = gevent.authorizationEventObject.userOAuthToken
     service = get_gmail_service(access_token)
 
-    # Retrieve unreplied emails asynchronously
-    unreplied_threads = await get_unreplied_emails_async(service)
+    # Retrieve unreplied emails
+    unreplied_threads = get_unreplied_emails(service)
 
     if isinstance(unreplied_threads, str):
         return JSONResponse(status_code=500, content={"error": {"message": "Error occurred while fetching emails: " + unreplied_threads}})
