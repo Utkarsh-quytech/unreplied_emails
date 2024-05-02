@@ -53,26 +53,26 @@ def get_unreplied_emails(gevent) -> List[EmailInfo]:
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch unreplied emails.")
 
-# @app.post("/homepage", response_class=JSONResponse)
-# async def homepage(gevent: models.GEvent):
-#     # Fetch unreplied emails
-#     unreplied_emails = get_unreplied_emails(gevent)
-
-#     # Convert EmailInfo objects to dictionaries
-#     email_dicts = [{"sender_name": email.sender_name, "subject": email.subject} for email in unreplied_emails]
-
-#     return email_dicts
-    
 @app.post("/homepage", response_class=JSONResponse)
 async def homepage(gevent: models.GEvent):
-    try:
-        # Fetch unreplied emails
-        unreplied_emails = get_unreplied_emails(gevent.authorizationEventObject.userIdToken)
+    # Fetch unreplied emails
+    unreplied_emails = get_unreplied_emails(gevent)
 
-        # Convert EmailInfo objects to dictionaries
-        email_dicts = [{"sender_name": email.sender_name, "subject": email.subject} for email in unreplied_emails]
+    # Convert EmailInfo objects to dictionaries
+    email_dicts = [{"sender_name": email.sender_name, "subject": email.subject} for email in unreplied_emails]
 
-        return email_dicts
+    return email_dicts
     
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to process request.")
+# @app.post("/homepage", response_class=JSONResponse)
+# async def homepage(gevent: models.GEvent):
+#     try:
+#         # Fetch unreplied emails
+#         unreplied_emails = get_unreplied_emails(gevent.authorizationEventObject.userIdToken)
+
+#         # Convert EmailInfo objects to dictionaries
+#         email_dicts = [{"sender_name": email.sender_name, "subject": email.subject} for email in unreplied_emails]
+
+#         return email_dicts
+    
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail="Failed to process request.")
