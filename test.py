@@ -5,6 +5,8 @@ from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
 from gapps.cardservice.utilities import decode_email
+from starlette.middleware import Middleware
+from starlette.middleware.timeout import TimeoutMiddleware
 import asyncio
 from functools import partial
 
