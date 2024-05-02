@@ -50,8 +50,10 @@ def get_unreplied_emails(gevent) -> List[EmailInfo]:
         
         return unreplied_emails
 
+    except requests.HTTPError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=f"Failed to fetch unreplied emails: {e.response.text}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to fetch unreplied emails.")
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 @app.post("/homepage", response_class=JSONResponse)
 async def homepage(gevent: models.GEvent):
