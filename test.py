@@ -38,7 +38,7 @@ def get_unreplied_emails(email, creds):
     service = build('gmail', 'v1', credentials=creds)
 
     # Get unreplied incoming emails
-    threads = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=20).execute()
+    threads = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=30).execute()
     if 'threads' in threads:
         for thread in threads['threads']:
             thread_id = thread['id']
