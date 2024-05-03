@@ -1,7 +1,7 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
@@ -37,12 +37,12 @@ def get_unreplied_emails(email, creds):
     unreplied_emails = []
     service = build('gmail', 'v1', credentials=creds)
 
-    # Get unreplied incoming emails with pagination
-    page_token = None
+    # Get unreplied incoming emails
+    next_page_token = None
     while True:
-        response = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=100, pageToken=page_token).execute()
-        if 'threads' in response:
-            for thread in response['threads']:
+        threads = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=100, pageToken=next_page_token).execute()
+        if 'threads' in threads:
+            for thread in threads['threads']:
                 thread_id = thread['id']
                 thread_messages = service.users().threads().get(userId='me', id=thread_id).execute()
                 for message in thread_messages['messages']:
@@ -56,9 +56,12 @@ def get_unreplied_emails(email, creds):
                     # Check if the email is from the specified domain and not replied
                     if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
                         unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
-        page_token = response.get('nextPageToken')
-        if not page_token:
-            break
+            # Check if there are more pages
+            next_page_token = threads.get('nextPageToken')
+            if not next_page_token:
+                break  # No more pages, exit the loop
+        else:
+            break  # No threads found, exit the loop
     return unreplied_emails
 
 def has_been_replied_to(service, thread_id):
