@@ -1,61 +1,44 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
-import logging
+from gapps.cardservice.utilities import decode_email
 
 app = FastAPI(title="Unreplied Emails Add-on")
-
-logging.basicConfig(level=logging.DEBUG)
 
 @app.get("/")
 async def root():
     return {"message": "Welcome to Unreplied Emails Add-on"}
 
 @app.post("/homepage", response_class=JSONResponse)
-async def homepage(gevent: models.GEvent):
+async def homepage(gevent: models.GEvent, background_tasks: BackgroundTasks):
     access_token = gevent.authorizationEventObject.userOAuthToken
+    email = decode_email(gevent.authorizationEventObject.userIdToken)
     creds = Credentials(access_token)
-    page = send_reminder(creds)
-    return page
+    background_tasks.add_task(send_reminder, email, creds)
+    return {"message": "Processing request in background"}
 
-def send_reminder(creds):
-    try:
-        unreplied_emails = get_unreplied_emails(creds)
-    except Exception as e:
-        logging.error(f"Error occurred while fetching unreplied emails: {e}")
-        raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching unreplied emails")
-    
+def send_reminder(email, creds):
+    unreplied_emails = get_unreplied_emails(email, creds)
     if unreplied_emails:
         # Build the card for unreplied emails
         card = build_unreplied_emails_card(unreplied_emails)
-        return card
+        # You can do something with the card here, such as sending it to the user's inbox
     else:
-        # Return a card indicating no unreplied emails
-        return CardService.newCardBuilder() \
-            .setHeader(CardService.newCardHeader().setTitle('No Unreplied Emails')) \
-            .build()
+        # Log or handle the case where no unreplied emails are found
+        pass
 
-def get_unreplied_emails(creds):
+def get_unreplied_emails(email, creds):
     unreplied_emails = []
     service = build('gmail', 'v1', credentials=creds)
 
     # Get unreplied incoming emails
     next_page_token = None
-    retries = 0
     while True:
-        try:
-            threads = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=100, pageToken=next_page_token).execute()
-        except Exception as e:
-            retries += 1
-            logging.warning(f"Error occurred while fetching threads. Retry {retries}. Error: {e}")
-            if retries >= 3:
-                raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching unreplied emails")
-            continue
-        
+        threads = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=100, pageToken=next_page_token).execute()
         if 'threads' in threads:
             for thread in threads['threads']:
                 thread_id = thread['id']
