@@ -1,11 +1,7 @@
+from google.oauth2 import credentials
+from googleapiclient.discovery import build
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
-from gapps import CardService
-from gapps.cardservice import models
-from gapps.cardservice.utilities import decode_email
-import google.oauth2.credentials
-from googleapiclient.discovery import build
-from datetime import datetime
 
 app = FastAPI(title="Unreplied Emails Add-on")
 
@@ -15,7 +11,7 @@ async def root():
 
 # Function to authenticate and authorize the user
 def get_gmail_service(access_token):
-    creds = Credentials(access_token)
+    creds = credentials.Credentials(access_token)
     return build('gmail', 'v1', credentials=creds)
 
 # Function to check if the email is from the quytech.com domain
