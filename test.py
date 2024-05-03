@@ -7,12 +7,16 @@ from gapps import CardService
 
 app = FastAPI(title="Unreplied Emails Add-on")
 
+@app.get("/")
+async def root():
+    return {"message": "Welcome to Simple Demo App example"}
+
 # Function to authenticate and authorize the user
 def get_gmail_service(access_token):
     creds = google.oauth2.credentials.Credentials(access_token)
     return build('gmail', 'v1', credentials=creds)
 
-# Function to retrieve unreplied emails from users with domain @quytech.com
+# Function to retrieve unreplied emails from senders with domain @quytech.com
 def get_unreplied_emails(service):
     try:
         response = service.users().messages().list(userId='me', maxResults=10).execute()
@@ -39,13 +43,21 @@ def build_cards(emails):
         sender_name = email['sender']
         subject = email['subject']
 
-        card_section1_decorated_text1 = CardService.newDecoratedText() \
+        # Create decorated text widgets for sender name and subject
+        sender_text = CardService.newDecoratedText() \
             .setText(sender_name) \
-            .setBottomLabel(subject)
+            .setBottomLabel('From:')
 
+        subject_text = CardService.newDecoratedText() \
+            .setText(subject) \
+            .setBottomLabel('Subject:')
+
+        # Create card sections with sender name and subject widgets
         card_section1 = CardService.newCardSection() \
-            .addWidget(card_section1_decorated_text1)
+            .addWidget(sender_text) \
+            .addWidget(subject_text)
 
+        # Build the card
         card = CardService.newCardBuilder() \
             .addSection(card_section1) \
             .build()
@@ -60,14 +72,15 @@ def homepage(gevent: models.GEvent):
     access_token = gevent.authorizationEventObject.userOAuthToken
     service = get_gmail_service(access_token)
 
-    # Retrieve unreplied emails from users with domain @quytech.com
+    # Retrieve unreplied emails from senders with domain @quytech.com
     unreplied_emails = get_unreplied_emails(service)
 
     if unreplied_emails:
         # Build cards to display in the add-on
         cards = build_cards(unreplied_emails)
-        return JSONResponse(status_code=200, content={"cards": cards})
+        return JSONResponse(status_code=200, content={"renderActions": {"actions": cards}})
     
-    # If no unreplied emails found, return an empty list
+    # If no unreplied emails found, return a message
     return JSONResponse(status_code=200, content={"message": "No unreplied emails found"})
+
 
