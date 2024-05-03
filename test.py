@@ -1,7 +1,7 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
@@ -14,18 +14,19 @@ async def root():
     return {"message": "Welcome to Unreplied Emails Add-on"}
 
 @app.post("/homepage", response_class=JSONResponse)
-async def homepage(gevent: models.GEvent):
+async def homepage(gevent: models.GEvent, background_tasks: BackgroundTasks):
     access_token = gevent.authorizationEventObject.userOAuthToken
     email = decode_email(gevent.authorizationEventObject.userIdToken)
     creds = Credentials(access_token)
-    page = send_reminder(email, creds)
-    return page
+    background_tasks.add_task(send_reminder, email, creds)
+    return {"message": "Processing the request in the background. Please wait."}
 
 def send_reminder(email, creds):
     unreplied_emails = get_unreplied_emails(email, creds)
     if unreplied_emails:
         # Build the card for unreplied emails
         card = build_unreplied_emails_card(unreplied_emails)
+        # Return the card
         return card
     else:
         # Return a card indicating no unreplied emails
@@ -39,8 +40,6 @@ def get_unreplied_emails(email, creds):
 
     # Get unreplied incoming emails
     next_page_token = None
-    max_requests = 10  # Adjust as needed
-    num_requests = 0
     while True:
         threads = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=100, pageToken=next_page_token).execute()
         if 'threads' in threads:
@@ -58,12 +57,10 @@ def get_unreplied_emails(email, creds):
                     # Check if the email is from the specified domain and not replied
                     if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
                         unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
-                        # Increment the number of requests made
-                        num_requests += 1
             # Check if there are more pages
             next_page_token = threads.get('nextPageToken')
-            if not next_page_token or num_requests >= max_requests:
-                break  # No more pages or reached max requests, exit the loop
+            if not next_page_token:
+                break  # No more pages, exit the loop
         else:
             break  # No threads found, exit the loop
     return unreplied_emails
