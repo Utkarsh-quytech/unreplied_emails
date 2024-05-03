@@ -1,95 +1,60 @@
-from gapps.cardservice import models
-import google.oauth2.credentials
-from googleapiclient.discovery import build
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
 from gapps import CardService
+from gapps.cardservice import models
+from gapps.cardservice.utilities import decode_email
+import google.oauth2.credentials
+from googleapiclient.discovery import build
 
 app = FastAPI(title="Unreplied Emails Add-on")
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Simple Demo App example"}
+    return {"message": "Welcome to Email add-on test"}
 
 # Function to authenticate and authorize the user
 def get_gmail_service(access_token):
     creds = google.oauth2.credentials.Credentials(access_token)
     return build('gmail', 'v1', credentials=creds)
 
-# Function to retrieve unreplied emails from users with domain @quytech.com
-def get_unreplied_emails(service):
+# Function to retrieve unreplied emails asynchronously
+async def get_unreplied_emails_async(service):
     try:
-        response = service.users().messages().list(userId='me', maxResults=10).execute()
-        messages = response.get('messages', [])
-        unreplied_emails = []
+        response = service.users().threads().list(userId='me', q='is:unread').execute()
+        threads = response.get('threads', [])
+        unreplied_threads = []
 
-        for message in messages:
-            message_id = message['id']
-            msg = service.users().messages().get(userId='me', id=message_id).execute()
-            if not any('INBOX' in label for label in msg['labelIds']):
-                sender = next((header['value'] for header in msg['payload']['headers'] if header['name'] == 'From'), '')
-                subject = next((header['value'] for header in msg['payload']['headers'] if header['name'] == 'Subject'), '')
-                if sender.endswith('@quytech.com'):
-                    unreplied_emails.append({'sender': sender, 'subject': subject})
+        for thread in threads:
+            unreplied_threads.append(thread)
 
-        return unreplied_emails
+        return unreplied_threads
     except Exception as e:
-        return str(e)
+        return []
 
 # Function to build cards to display in the add-on
 def build_cards(emails):
     cards = []
     for email in emails:
-        sender_name = email['sender']
-        subject = email['subject']
-
-        # Create card section with sender name and subject
-        card_section1_decorated_text1 = CardService.newDecoratedText() \
-            .setText(sender_name) \
-            .setBottomLabel(subject)
-
-        card_section1 = CardService.newCardSection() \
-            .addWidget(card_section1_decorated_text1)
-
-        # Create a card with the card section
-        card = CardService.newCardBuilder() \
-            .addSection(card_section1) \
-            .build()
-        
-        cards.append(card)
+        card = CardService.newCardBuilder()
+        card.set_header_text(email['snippet'])
+        cards.append(card.build())
 
     return cards
 
-# Endpoint to retrieve unreplied emails with domain @quytech.com
-@app.post("/homepage", response_class=JSONResponse)
-def homepage(gevent: models.GEvent):
+# Background task to retrieve and display unreplied emails
+async def background_task(gevent: models.GEvent, background_tasks: BackgroundTasks):
     access_token = gevent.authorizationEventObject.userOAuthToken
     service = get_gmail_service(access_token)
 
-    # Retrieve unreplied emails from users with domain @quytech.com
-    unreplied_emails = get_unreplied_emails(service)
+    # Retrieve unreplied emails asynchronously
+    unreplied_threads = await get_unreplied_emails_async(service)
 
-    if unreplied_emails:
-        # Build cards to display in the add-on
-        cards = build_cards(unreplied_emails)
-        card_dicts = [
-            {
-                "header": {"title": card.header.title},
-                "sections": [
-                    {
-                        "widgets": [
-                            {
-                                "textParagraph": {"text": widget.text}
-                            }
-                            for widget in section.widgets
-                        ]
-                    }
-                    for section in card.sections
-                ]
-            }
-            for card in cards
-        ]
-        return JSONResponse(status_code=200, content={"cards": card_dicts})
-    
-    # If no unreplied emails found, return an empty list
-    return JSONResponse(status_code=200, content={"cards": []})
+    # Build cards to display in the add-on
+    cards = build_cards(unreplied_threads)
+    return {"cards": cards}
+
+# Endpoint to trigger background task for retrieving emails
+@app.post("/homepage", response_class=JSONResponse)
+async def homepage(gevent: models.GEvent, background_tasks: BackgroundTasks):
+    background_tasks.add_task(background_task, gevent, background_tasks)
+    return JSONResponse(content={}, status_code=200)
