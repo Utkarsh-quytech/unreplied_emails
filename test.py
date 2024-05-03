@@ -1,7 +1,7 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
@@ -13,20 +13,19 @@ app = FastAPI(title="Unreplied Emails Add-on")
 async def root():
     return {"message": "Welcome to Unreplied Emails Add-on"}
 
-@app.post("/homepage", response_class=JSONResponse)
-async def homepage(gevent: models.GEvent, background_tasks: BackgroundTasks):
+@app.post("/homepage", response_class=JSONResponse, timeout=300)  # Increase timeout duration
+async def homepage(gevent: models.GEvent):
     access_token = gevent.authorizationEventObject.userOAuthToken
     email = decode_email(gevent.authorizationEventObject.userIdToken)
     creds = Credentials(access_token)
-    background_tasks.add_task(send_reminder, email, creds)
-    return {"message": "Processing the request in the background. Please wait."}
+    page = send_reminder(email, creds)
+    return page
 
 def send_reminder(email, creds):
     unreplied_emails = get_unreplied_emails(email, creds)
     if unreplied_emails:
         # Build the card for unreplied emails
         card = build_unreplied_emails_card(unreplied_emails)
-        # Return the card
         return card
     else:
         # Return a card indicating no unreplied emails
