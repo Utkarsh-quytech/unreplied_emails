@@ -1,5 +1,5 @@
+import aiohttp
 import asyncio
-from aiogoogle import Aiogoogle
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from gapps import CardService
@@ -33,62 +33,48 @@ async def send_reminder(email, access_token):
 
 async def get_unreplied_emails(email, access_token):
     unreplied_emails = []
-    async with Aiogoogle() as aiogoogle:
-        gmail = await aiogoogle.discover('gmail', 'v1')
-        # Get unreplied incoming emails
+    headers = {"Authorization": f"Bearer {access_token}"}
+    params = {
+        'q': '-is:chats -is:sent -is:draft -in:trash',
+        'maxResults': 100
+    }
+    base_url = "https://gmail.googleapis.com/gmail/v1/users/me/threads"
+    async with aiohttp.ClientSession() as session:
         next_page_token = None
         while True:
-            params = {
-                'userId': 'me',
-                'q': '-is:chats -is:sent -is:draft -in:trash',
-                'maxResults': 100,
-                'pageToken': next_page_token
-            }
-            response = await aiogoogle.as_service_account(
-                gmail.users().threads().list,
-                access_token,
-                userId='me',
-                q='-is:chats -is:sent -is:draft -in:trash',
-                maxResults=100,
-                pageToken=next_page_token
-            )
-            threads = response.get('threads', [])
-            for thread in threads:
-                thread_id = thread['id']
-                thread_details = await aiogoogle.as_service_account(
-                    gmail.users().threads().get,
-                    access_token,
-                    userId='me',
-                    id=thread_id
-                )
-                messages = thread_details.get('messages', [])
-                for message in messages:
-                    message_id = message['id']
-                    message_details = await aiogoogle.as_service_account(
-                        gmail.users().messages().get,
-                        access_token,
-                        userId='me',
-                        id=message_id
-                    )
-                    sender = next((header['value'] for header in message_details['payload']['headers'] if header['name'] == 'From'), None)
-                    subject = next((header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Subject'), None)
-                    message_date = datetime.fromtimestamp(int(message_details['internalDate'])/1000.0)
-                    # Check if the email is from the specified domain and not replied
-                    if sender and '@quytech.com' in sender and not await has_been_replied_to(gmail, access_token, thread_id):
-                        unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
-            # Check if there are more pages
-            next_page_token = response.get('nextPageToken')
-            if not next_page_token:
-                break  # No more pages, exit the loop
+            if next_page_token:
+                params['pageToken'] = next_page_token
+            async with session.get(base_url, params=params, headers=headers) as response:
+                data = await response.json()
+                threads = data.get('threads', [])
+                for thread in threads:
+                    thread_id = thread['id']
+                    async with session.get(f"{base_url}/{thread_id}", headers=headers) as thread_response:
+                        thread_data = await thread_response.json()
+                        messages = thread_data.get('messages', [])
+                        for message in messages:
+                            message_id = message['id']
+                            async with session.get(f"{base_url}/{thread_id}/messages/{message_id}", headers=headers) as message_response:
+                                message_data = await message_response.json()
+                                sender = next((header['value'] for header in message_data['payload']['headers'] if header['name'] == 'From'), None)
+                                subject = next((header['value'] for header in message_data['payload']['headers'] if header['name'] == 'Subject'), None)
+                                message_date = datetime.fromtimestamp(int(message_data['internalDate'])/1000.0)
+                                # Check if the email is from the specified domain and not replied
+                                if sender and '@quytech.com' in sender and not await has_been_replied_to(access_token, thread_id):
+                                    unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
+                # Check if there are more pages
+                next_page_token = data.get('nextPageToken')
+                if not next_page_token:
+                    break  # No more pages, exit the loop
     return unreplied_emails
 
-async def has_been_replied_to(gmail, access_token, thread_id):
-    response = await aiogoogle.as_service_account(
-        gmail.users().threads().get(userId='me', id=thread_id),
-        credentials=access_token
-    )
-    messages = response.get('messages', [])
-    return len(messages) > 1
+async def has_been_replied_to(access_token, thread_id):
+    async with aiohttp.ClientSession() as session:
+        headers = {"Authorization": f"Bearer {access_token}"}
+        async with session.get(f"https://gmail.googleapis.com/gmail/v1/users/me/threads/{thread_id}", headers=headers) as response:
+            data = await response.json()
+            messages = data.get('messages', [])
+            return len(messages) > 1
 
 def build_unreplied_emails_card(emails):
     card = CardService.newCardBuilder().setHeader(CardService.newCardHeader().setTitle('Unreplied Emails'))
