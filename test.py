@@ -1,4 +1,3 @@
-from gapps.cardservice import models
 import google.oauth2.credentials
 from googleapiclient.discovery import build
 from fastapi import FastAPI, BackgroundTasks
@@ -12,7 +11,7 @@ def get_gmail_service(access_token):
     creds = google.oauth2.credentials.Credentials(access_token)
     return build('gmail', 'v1', credentials=creds)
 
-# Function to retrieve unreplied emails with domain @quytech.com
+# Function to retrieve unreplied emails from users with domain @quytech.com
 def get_unreplied_emails(service):
     try:
         response = service.users().messages().list(userId='me', maxResults=10).execute()
@@ -25,7 +24,8 @@ def get_unreplied_emails(service):
             if not any('INBOX' in label for label in msg['labelIds']):
                 sender = next((header['value'] for header in msg['payload']['headers'] if header['name'] == 'From'), '')
                 subject = next((header['value'] for header in msg['payload']['headers'] if header['name'] == 'Subject'), '')
-                unreplied_emails.append({'sender': sender, 'subject': subject})
+                if sender.endswith('@quytech.com'):
+                    unreplied_emails.append({'sender': sender, 'subject': subject})
 
         return unreplied_emails
     except Exception as e:
@@ -59,16 +59,13 @@ def homepage(gevent: models.GEvent):
     access_token = gevent.authorizationEventObject.userOAuthToken
     service = get_gmail_service(access_token)
 
-    # Retrieve unreplied emails
+    # Retrieve unreplied emails from users with domain @quytech.com
     unreplied_emails = get_unreplied_emails(service)
 
     if unreplied_emails:
-        # Filter emails from @quytech.com domain
-        quytech_emails = [email for email in unreplied_emails if email['sender'].endswith('@quytech.com')]
-
-        if quytech_emails:
-            # Build cards to display in the add-on
-            return JSONResponse(status_code=200, content=build_cards(quytech_emails))
+        # Build cards to display in the add-on
+        cards = build_cards(unreplied_emails)
+        return JSONResponse(status_code=200, content={"renderActions": {"actions": cards}})
     
-    # If no unreplied emails found or no unreplied emails from @quytech.com domain, return an empty list
-    return JSONResponse(status_code=200, content=[])
+    # If no unreplied emails found, return an empty list
+    return JSONResponse(status_code=200, content={"message": "No unreplied emails found"})
