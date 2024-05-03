@@ -33,7 +33,7 @@ async def get_unreplied_emails_async(service):
             msg_details = service.users().messages().get(userId='me', id=message['id']).execute()
             sender = msg_details['payload']['headers'][3]['value']  # Assuming 'From' header is at index 3
             subject = next(header['value'] for header in msg_details['payload']['headers'] if header['name'] == 'Subject')
-            date = datetime.utcfromtimestamp(int(msg_details['internalDate']) / 1000).strftime('%Y-%m-%d %H:%M:%S')
+            date = msg_details['internalDate']  # Adjust as needed
             if is_quytech_email(sender) and not has_been_replied_to(service, msg_details):
                 unreplied_emails.append({'sender': sender, 'subject': subject, 'date': date})
         
