@@ -37,23 +37,29 @@ def get_unreplied_emails(email, creds):
     unreplied_emails = []
     service = build('gmail', 'v1', credentials=creds)
 
-    # Get unreplied incoming emails
-    threads = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=50).execute()
-    if 'threads' in threads:
-        for thread in threads['threads']:
-            thread_id = thread['id']
-            thread_messages = service.users().threads().get(userId='me', id=thread_id).execute()
-            for message in thread_messages['messages']:
-                message_id = message['id']
-                message_details = service.users().messages().get(userId='me', id=message_id).execute()
-                sender = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'From']
-                sender = sender[0] if sender else None
-                subject = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Subject']
-                subject = subject[0] if subject else None
-                message_date = datetime.fromtimestamp(int(message_details['internalDate'])/1000.0)
-                # Check if the email is from the specified domain and not replied
-                if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
-                    unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
+    # Get unreplied incoming emails with pagination
+    nextPageToken = None
+    while True:
+        threads = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=100, pageToken=nextPageToken).execute()
+        if 'threads' in threads:
+            for thread in threads['threads']:
+                thread_id = thread['id']
+                thread_messages = service.users().threads().get(userId='me', id=thread_id).execute()
+                for message in thread_messages['messages']:
+                    message_id = message['id']
+                    message_details = service.users().messages().get(userId='me', id=message_id).execute()
+                    sender = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'From']
+                    sender = sender[0] if sender else None
+                    subject = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Subject']
+                    subject = subject[0] if subject else None
+                    message_date = datetime.fromtimestamp(int(message_details['internalDate'])/1000.0)
+                    # Check if the email is from the specified domain and not replied
+                    if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
+                        unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
+        if 'nextPageToken' in threads:
+            nextPageToken = threads['nextPageToken']
+        else:
+            break
     return unreplied_emails
 
 def has_been_replied_to(service, thread_id):
