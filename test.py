@@ -11,6 +11,11 @@ app = FastAPI(title="Unreplied Emails Add-on")
 async def root():
     return {"message": "Welcome to Simple Demo App example"}
 
+# Function to authenticate and authorize the user
+def get_gmail_service(access_token):
+    creds = google.oauth2.credentials.Credentials(access_token)
+    return build('gmail', 'v1', credentials=creds)
+
 # Function to retrieve unreplied emails from users with domain @quytech.com
 def get_unreplied_emails(service):
     try:
