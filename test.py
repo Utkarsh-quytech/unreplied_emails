@@ -1,6 +1,6 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from datetime import datetime, timedelta
+from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from gapps import CardService
@@ -38,11 +38,11 @@ def get_unreplied_emails(email, creds):
     service = build('gmail', 'v1', credentials=creds)
 
     # Get unreplied incoming emails with pagination
-    nextPageToken = None
+    page_token = None
     while True:
-        threads = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=100, pageToken=nextPageToken).execute()
-        if 'threads' in threads:
-            for thread in threads['threads']:
+        response = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=100, pageToken=page_token).execute()
+        if 'threads' in response:
+            for thread in response['threads']:
                 thread_id = thread['id']
                 thread_messages = service.users().threads().get(userId='me', id=thread_id).execute()
                 for message in thread_messages['messages']:
@@ -56,9 +56,8 @@ def get_unreplied_emails(email, creds):
                     # Check if the email is from the specified domain and not replied
                     if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
                         unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
-        if 'nextPageToken' in threads:
-            nextPageToken = threads['nextPageToken']
-        else:
+        page_token = response.get('nextPageToken')
+        if not page_token:
             break
     return unreplied_emails
 
