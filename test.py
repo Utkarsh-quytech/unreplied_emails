@@ -24,7 +24,7 @@ async def homepage(gevent: models.GEvent):
 
 async def send_reminder(email, creds):
     try:
-        unreplied_emails = await get_unreplied_emails(email, creds)
+        unreplied_emails = await asyncio.wait_for(get_unreplied_emails(email, creds), timeout=30)
         if unreplied_emails:
             # Build the card for unreplied emails
             card = build_unreplied_emails_card(unreplied_emails)
@@ -39,7 +39,7 @@ async def send_reminder(email, creds):
 
 async def get_unreplied_emails(email, creds):
     unreplied_emails = []
-    service = build('gmail', 'v1', credentials=creds, timeout=30)  # Set timeout to 30 seconds
+    service = build('gmail', 'v1', credentials=creds)
 
     # Get unreplied incoming emails
     next_page_token = None
