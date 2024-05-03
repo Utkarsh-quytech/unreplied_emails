@@ -1,7 +1,7 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
@@ -14,15 +14,15 @@ async def root():
     return {"message": "Welcome to Unreplied Emails Add-on"}
 
 @app.post("/homepage", response_class=JSONResponse)
-async def homepage(gevent: models.GEvent):
+async def homepage(gevent: models.GEvent, background_tasks: BackgroundTasks):
     access_token = gevent.authorizationEventObject.userOAuthToken
     email = decode_email(gevent.authorizationEventObject.userIdToken)
     creds = Credentials(access_token)
-    page = send_reminder(email, creds)
-    return page
+    background_tasks.add_task(send_reminder, email, creds)
+    return {"message": "Processing the request in the background. Please wait..."}
 
-def send_reminder(email, creds):
-    unreplied_emails = get_unreplied_emails(email, creds)
+async def send_reminder(email, creds):
+    unreplied_emails = await get_unreplied_emails(email, creds)
     if unreplied_emails:
         # Build the card for unreplied emails
         card = build_unreplied_emails_card(unreplied_emails)
@@ -33,9 +33,9 @@ def send_reminder(email, creds):
             .setHeader(CardService.newCardHeader().setTitle('No Unreplied Emails')) \
             .build()
 
-def get_unreplied_emails(email, creds):
+async def get_unreplied_emails(email, creds):
     unreplied_emails = []
-    service = build('gmail', 'v1', credentials=creds, timeout=120)  # Increased timeout to 120 seconds
+    service = build('gmail', 'v1', credentials=creds)
 
     # Get unreplied incoming emails
     next_page_token = None
@@ -54,7 +54,7 @@ def get_unreplied_emails(email, creds):
                     subject = subject[0] if subject else None
                     message_date = datetime.fromtimestamp(int(message_details['internalDate'])/1000.0)
                     # Check if the email is from the specified domain and not replied
-                    if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
+                    if sender and '@quytech.com' in sender and not await has_been_replied_to(service, thread_id):
                         unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
             # Check if there are more pages
             next_page_token = threads.get('nextPageToken')
@@ -64,7 +64,7 @@ def get_unreplied_emails(email, creds):
             break  # No threads found, exit the loop
     return unreplied_emails
 
-def has_been_replied_to(service, thread_id):
+async def has_been_replied_to(service, thread_id):
     thread = service.users().threads().get(userId='me', id=thread_id).execute()
     messages = thread['messages']
     return len(messages) > 1
