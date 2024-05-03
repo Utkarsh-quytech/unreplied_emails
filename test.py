@@ -25,8 +25,16 @@ async def get_unreplied_emails_async(service):
         unreplied_threads = []
 
         for thread in threads:
-            unreplied_threads.append(thread)
-
+            thread_id = thread['id']
+            messages = service.users().threads().get(userId='me', id=thread_id).execute()
+            if len(messages['messages']) == 1:  # Only one message means it hasn't been replied to
+                message = messages['messages'][0]
+                sender = message['payload']['headers'][1]['value']  # Assuming sender's email is the second header
+                subject = next(item['value'] for item in message['payload']['headers'] if item['name'] == 'Subject')
+                date = message['payload']['headers'][2]['value']  # Assuming date is the third header
+                if sender.endswith('@quytech.com'):
+                    unreplied_threads.append({'sender': sender, 'subject': subject, 'date': date})
+        
         return unreplied_threads
     except Exception as e:
         return []
@@ -36,7 +44,9 @@ def build_cards(emails):
     cards = []
     for email in emails:
         card = CardService.newCardBuilder()
-        card.set_header_text(email['snippet'])
+        card.set_header_text(email['subject'])
+        card.add_section(CardService.newCardSection()
+            .add_widget(CardService.newDecoratedText().set_text(email['sender']).set_bottom_label(email['date'])))
         cards.append(card.build())
 
     return cards
@@ -62,3 +72,4 @@ async def background_task(gevent: models.GEvent, background_tasks: BackgroundTas
 async def homepage(gevent: models.GEvent, background_tasks: BackgroundTasks):
     background_tasks.add_task(background_task, gevent, background_tasks)
     return JSONResponse(content={}, status_code=200)
+
