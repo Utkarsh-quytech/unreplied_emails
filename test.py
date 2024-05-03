@@ -72,8 +72,24 @@ def homepage(gevent: models.GEvent):
     if unreplied_emails:
         # Build cards to display in the add-on
         cards = build_cards(unreplied_emails)
-        actions = [{"action": "DISPLAY_STATIC_CARD", "staticCard": {"card": card}} for card in cards]
-        return JSONResponse(status_code=200, content={"renderActions": {"actions": actions}})
+        card_dicts = [
+            {
+                "header": {"title": card.header.title},
+                "sections": [
+                    {
+                        "widgets": [
+                            {
+                                "textParagraph": {"text": widget.text}
+                            }
+                            for widget in section.widgets
+                        ]
+                    }
+                    for section in card.sections
+                ]
+            }
+            for card in cards
+        ]
+        return JSONResponse(status_code=200, content={"cards": card_dicts})
     
     # If no unreplied emails found, return an empty list
-    return JSONResponse(status_code=200, content={"renderActions": {"actions": []}})
+    return JSONResponse(status_code=200, content={"cards": []})
