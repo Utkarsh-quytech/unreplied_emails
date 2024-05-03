@@ -1,11 +1,10 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException
+from datetime import datetime
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
-from gapps.cardservice.utilities import decode_email
 
 app = FastAPI(title="Unreplied Emails Add-on")
 
