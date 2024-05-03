@@ -1,7 +1,7 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
@@ -39,6 +39,8 @@ def get_unreplied_emails(email, creds):
 
     # Get unreplied incoming emails
     next_page_token = None
+    max_requests = 10  # Adjust as needed
+    num_requests = 0
     while True:
         threads = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=100, pageToken=next_page_token).execute()
         if 'threads' in threads:
@@ -56,10 +58,12 @@ def get_unreplied_emails(email, creds):
                     # Check if the email is from the specified domain and not replied
                     if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
                         unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
+                        # Increment the number of requests made
+                        num_requests += 1
             # Check if there are more pages
             next_page_token = threads.get('nextPageToken')
-            if not next_page_token:
-                break  # No more pages, exit the loop
+            if not next_page_token or num_requests >= max_requests:
+                break  # No more pages or reached max requests, exit the loop
         else:
             break  # No threads found, exit the loop
     return unreplied_emails
