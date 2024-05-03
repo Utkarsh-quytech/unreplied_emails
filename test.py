@@ -22,13 +22,9 @@ async def get_unreplied_emails_async(service):
     try:
         response = service.users().threads().list(userId='me', q='is:unread').execute()
         threads = response.get('threads', [])
-        unreplied_threads = []
-
-        for thread in threads:
-            unreplied_threads.append(thread)
-
-        return unreplied_threads
+        return threads
     except Exception as e:
+        print(f"Error fetching unreplied emails: {e}")
         return []
 
 # Function to build cards to display in the add-on
@@ -38,7 +34,6 @@ def build_cards(emails):
         card = CardService.newCardBuilder()
         card.set_header_text(email['snippet'])
         cards.append(card.build())
-
     return cards
 
 # Background task to retrieve and display unreplied emails
@@ -48,6 +43,10 @@ async def background_task(gevent: models.GEvent, background_tasks: BackgroundTas
 
     # Retrieve unreplied emails asynchronously
     unreplied_threads = await get_unreplied_emails_async(service)
+
+    if not unreplied_threads:
+        print("No unreplied emails found.")
+        return {"cards": []}
 
     # Build cards to display in the add-on
     cards = build_cards(unreplied_threads)
