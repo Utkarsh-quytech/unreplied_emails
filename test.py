@@ -16,7 +16,7 @@ def get_gmail_service(access_token):
     creds = google.oauth2.credentials.Credentials(access_token)
     return build('gmail', 'v1', credentials=creds)
 
-# Function to retrieve unreplied emails from senders with domain @quytech.com
+# Function to retrieve unreplied emails from users with domain @quytech.com
 def get_unreplied_emails(service):
     try:
         response = service.users().messages().list(userId='me', maxResults=10).execute()
@@ -43,21 +43,15 @@ def build_cards(emails):
         sender_name = email['sender']
         subject = email['subject']
 
-        # Create decorated text widgets for sender name and subject
-        sender_text = CardService.newDecoratedText() \
+        # Create card section with sender name and subject
+        card_section1_decorated_text1 = CardService.newDecoratedText() \
             .setText(sender_name) \
-            .setBottomLabel('From:')
+            .setBottomLabel(subject)
 
-        subject_text = CardService.newDecoratedText() \
-            .setText(subject) \
-            .setBottomLabel('Subject:')
-
-        # Create card sections with sender name and subject widgets
         card_section1 = CardService.newCardSection() \
-            .addWidget(sender_text) \
-            .addWidget(subject_text)
+            .addWidget(card_section1_decorated_text1)
 
-        # Build the card
+        # Create a card with the card section
         card = CardService.newCardBuilder() \
             .addSection(card_section1) \
             .build()
@@ -72,7 +66,7 @@ def homepage(gevent: models.GEvent):
     access_token = gevent.authorizationEventObject.userOAuthToken
     service = get_gmail_service(access_token)
 
-    # Retrieve unreplied emails from senders with domain @quytech.com
+    # Retrieve unreplied emails from users with domain @quytech.com
     unreplied_emails = get_unreplied_emails(service)
 
     if unreplied_emails:
@@ -80,6 +74,8 @@ def homepage(gevent: models.GEvent):
         cards = build_cards(unreplied_emails)
         return JSONResponse(status_code=200, content={"renderActions": {"actions": cards}})
     
+    # If no unreplied emails found, return a message
+    return JSONResponse(status_code=200, content={"message": "No unreplied emails found"})
     # If no unreplied emails found, return a message
     return JSONResponse(status_code=200, content={"message": "No unreplied emails found"})
 
