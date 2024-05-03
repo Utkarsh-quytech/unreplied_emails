@@ -45,22 +45,30 @@ async def get_unreplied_emails(email, access_token):
                 'pageToken': next_page_token
             }
             response = await aiogoogle.as_service_account(
-                gmail.users().threads().list(**params),
-                credentials=access_token
+                gmail.users().threads().list,
+                access_token,
+                userId='me',
+                q='-is:chats -is:sent -is:draft -in:trash',
+                maxResults=100,
+                pageToken=next_page_token
             )
             threads = response.get('threads', [])
             for thread in threads:
                 thread_id = thread['id']
                 thread_details = await aiogoogle.as_service_account(
-                    gmail.users().threads().get(userId='me', id=thread_id),
-                    credentials=access_token
+                    gmail.users().threads().get,
+                    access_token,
+                    userId='me',
+                    id=thread_id
                 )
                 messages = thread_details.get('messages', [])
                 for message in messages:
                     message_id = message['id']
                     message_details = await aiogoogle.as_service_account(
-                        gmail.users().messages().get(userId='me', id=message_id),
-                        credentials=access_token
+                        gmail.users().messages().get,
+                        access_token,
+                        userId='me',
+                        id=message_id
                     )
                     sender = next((header['value'] for header in message_details['payload']['headers'] if header['name'] == 'From'), None)
                     subject = next((header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Subject'), None)
