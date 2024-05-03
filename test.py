@@ -1,7 +1,7 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
@@ -13,7 +13,7 @@ app = FastAPI(title="Unreplied Emails Add-on")
 async def root():
     return {"message": "Welcome to Unreplied Emails Add-on"}
 
-@app.post("/homepage", response_class=JSONResponse, timeout=300)  # Increase timeout duration
+@app.post("/homepage", response_class=JSONResponse)
 async def homepage(gevent: models.GEvent):
     access_token = gevent.authorizationEventObject.userOAuthToken
     email = decode_email(gevent.authorizationEventObject.userIdToken)
@@ -39,6 +39,7 @@ def get_unreplied_emails(email, creds):
 
     # Get unreplied incoming emails
     next_page_token = None
+    timeout_counter = 0  # Track the number of consecutive timeouts
     while True:
         threads = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=100, pageToken=next_page_token).execute()
         if 'threads' in threads:
@@ -61,7 +62,9 @@ def get_unreplied_emails(email, creds):
             if not next_page_token:
                 break  # No more pages, exit the loop
         else:
-            break  # No threads found, exit the loop
+            timeout_counter += 1  # Increment the timeout counter
+            if timeout_counter >= 3:
+                break  # If there are consecutive timeouts, exit the loop
     return unreplied_emails
 
 def has_been_replied_to(service, thread_id):
