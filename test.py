@@ -35,12 +35,8 @@ async def get_unreplied_emails_async(service):
 def build_cards(emails):
     cards = []
     for email in emails:
-        card_section = CardService.newCardSection()
-        card_section.set_header('Unreplied Email')
-        card_section.set_widgets([CardService.newTextParagraph().setText(email['snippet'])])
-
         card = CardService.newCardBuilder()
-        card.add_section(card_section)
+        card.set_header_text(email['snippet'])
         cards.append(card.build())
 
     return cards
@@ -53,12 +49,13 @@ async def background_task(gevent: models.GEvent, background_tasks: BackgroundTas
     # Retrieve unreplied emails asynchronously
     unreplied_threads = await get_unreplied_emails_async(service)
 
+    if not unreplied_threads:
+        # If no unreplied emails found, return a response with an appropriate message
+        return JSONResponse(content={"message": "No unreplied emails found"}, status_code=200)
+    
     # Build cards to display in the add-on
-    if unreplied_threads:
-        cards = build_cards(unreplied_threads)
-        return {"cards": cards}
-    else:
-        return {"cards": []}
+    cards = build_cards(unreplied_threads)
+    return {"cards": cards}
 
 # Endpoint to trigger background task for retrieving emails
 @app.post("/homepage", response_class=JSONResponse)
