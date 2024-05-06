@@ -43,8 +43,6 @@ def get_unreplied_emails(creds):
         for thread in threads['threads']:
             thread_id = thread['id']
             thread_messages = service.users().threads().get(userId='me', id=thread_id).execute()
-
-            # Inside the loop where you extract message details
             for message in thread_messages['messages']:
                 message_id = message['id']
                 message_details = service.users().messages().get(userId='me', id=message_id).execute()
@@ -52,13 +50,14 @@ def get_unreplied_emails(creds):
                 sender = sender[0] if sender else None
                 subject = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Subject']
                 subject = subject[0] if subject else None
-                message_date = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Date']
-                message_date = parsedate_to_datetime(message_date[0]) if message_date else None
+                # Get exact date and time of the email message
+                date_header = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Date']
+                message_date = parsedate_to_datetime(date_header[0]) if date_header else None
                 # Check if the email is from the specified domain and not replied
                 if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
                     unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
-
     return unreplied_emails
+
 
 def has_been_replied_to(service, thread_id):
     thread = service.users().threads().get(userId='me', id=thread_id).execute()
