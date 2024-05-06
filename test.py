@@ -53,7 +53,10 @@ def get_unreplied_emails(creds):
                 sender = sender[0] if sender else None
                 subject = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Subject']
                 subject = subject[0] if subject else None
-                message_date = datetime.fromtimestamp(int(message_details['internalDate'])/1000.0, tz=pytz.utc).astimezone(desired_timezone)
+                # Convert timestamp to datetime object
+                timestamp = int(message_details['internalDate']) / 1000.0
+                utc_datetime = datetime.utcfromtimestamp(timestamp)
+                message_date = pytz.utc.localize(utc_datetime).astimezone(desired_timezone)
                 # Check if the email is from the specified domain and not replied
                 if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
                     unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
@@ -74,4 +77,3 @@ def build_unreplied_emails_card(emails):
             .addWidget(CardService.newTextParagraph().setText(f'Date: {email["date"].strftime("%Y-%m-%d %H:%M:%S %Z")}'))
         card.addSection(section)
     return card.build()
-
