@@ -1,11 +1,12 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
-from email.utils import parsedate_to_datetime
+from pytz import timezone  # Import pytz library for handling timezones
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
+from email.utils import parsedate_to_datetime
 
 app = FastAPI(title="Emails-Not-Replied Add-on")
 
@@ -42,6 +43,8 @@ def get_unreplied_emails(creds):
         for thread in threads['threads']:
             thread_id = thread['id']
             thread_messages = service.users().threads().get(userId='me', id=thread_id).execute()
+
+            # Inside the loop where you extract message details
             for message in thread_messages['messages']:
                 message_id = message['id']
                 message_details = service.users().messages().get(userId='me', id=message_id).execute()
@@ -49,29 +52,13 @@ def get_unreplied_emails(creds):
                 sender = sender[0] if sender else None
                 subject = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Subject']
                 subject = subject[0] if subject else None
-                message_date_str = message_details['payload']['headers'][0]['value']
-                message_date = parse_date_from_string(message_date_str)
+                message_date = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Date']
+                message_date = parsedate_to_datetime(message_date[0]) if message_date else None
                 # Check if the email is from the specified domain and not replied
                 if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
                     unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
+
     return unreplied_emails
-
-def parse_date_from_string(date_str):
-    try:
-        # Try to parse with time zone
-        return parsedate_to_datetime(date_str)
-    except TypeError:
-        # Fallback to parsing without time zone
-        try:
-            # Try parsing without time zone using a flexible approach
-            return datetime.strptime(date_str, "%a, %d %b %Y %H:%M:%S").replace(tzinfo=None)
-        except ValueError:
-            # If parsing fails, return None
-            return None
-    except:
-        # Fallback for any other parsing errors
-        return None
-
 
 def has_been_replied_to(service, thread_id):
     thread = service.users().threads().get(userId='me', id=thread_id).execute()
@@ -79,7 +66,7 @@ def has_been_replied_to(service, thread_id):
     return len(messages) > 1
 
 def build_unreplied_emails_card(emails):
-    card = CardService.newCardBuilder().setHeader(CardService.newCardHeader().setTitle('Emails-Not-Replied '))
+    card = CardService.newCardBuilder().setHeader(CardService.newCardHeader().setTitle('Emails-Not-Replied'))
     # Add sections for each unreplied email
     for email in emails:
         section = CardService.newCardSection() \
