@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
+import pytz
 from tzlocal import get_localzone
 
 app = FastAPI(title="Unreplied Emails Add-on")
@@ -52,10 +53,10 @@ def get_unreplied_emails(creds):
                 message_date = datetime.fromtimestamp(int(message_details['internalDate'])/1000.0)
                 # Convert to local timezone
                 local_tz = get_localzone()
-                message_date_local = message_date.astimezone(local_tz)
+                message_date_localized = message_date.astimezone(local_tz)
                 # Check if the email is from the specified domain and not replied
                 if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
-                    unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date_local.strftime('%Y-%m-%d %H:%M:%S')})
+                    unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date_localized.strftime('%Y-%m-%d %H:%M:%S %Z%z')})
     return unreplied_emails
 
 def has_been_replied_to(service, thread_id):
