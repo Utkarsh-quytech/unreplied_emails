@@ -74,3 +74,4 @@ def build_unreplied_emails_card(emails):
             .addWidget(CardService.newTextParagraph().setText(f'Date: {email["date"]}'))
         card.addSection(section)
     return card.build()
+
