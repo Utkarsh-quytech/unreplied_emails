@@ -6,8 +6,6 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
-import pytz
-from geopy.geocoders import Nominatim
 
 app = FastAPI(title="Emails-Not-Replied Add-on")
 
@@ -19,15 +17,14 @@ async def root():
 async def homepage(gevent: models.GEvent):
     access_token = gevent.authorizationEventObject.userOAuthToken
     creds = Credentials(access_token)
-    user_location = gevent.authorizationEventObject.userLocation  # Assuming userLocation is sent in the request
-    page = send_reminder(creds, user_location)
+    page = send_reminder(creds)
     return page
 
-def send_reminder(creds, user_location):
+def send_reminder(creds):
     unreplied_emails = get_unreplied_emails(creds)
     if unreplied_emails:
         # Build the card for unreplied emails
-        card = build_unreplied_emails_card(unreplied_emails, user_location)
+        card = build_unreplied_emails_card(unreplied_emails)
         return card
     else:
         # Return a card indicating no unreplied emails
@@ -35,19 +32,8 @@ def send_reminder(creds, user_location):
             .setHeader(CardService.newCardHeader().setTitle('No Unreplied Emails')) \
             .build()
 
-def get_user_timezone(user_location):
-    geolocator = Nominatim(user_agent="email-not-replied-addon")
-    location = geolocator.geocode(user_location)
-    if location:
-        timezone_str = pytz.timezone(location.timezone).zone
-        return pytz.timezone(timezone_str)
-    else:
-        # Default to UTC timezone if location not found
-        return pytz.utc
-
-def get_unreplied_emails(creds, user_location):
+def get_unreplied_emails(creds):
     unreplied_emails = []
-    user_timezone = get_user_timezone(user_location)
     service = build('gmail', 'v1', credentials=creds)
 
     # Get unreplied incoming emails
@@ -64,15 +50,18 @@ def get_unreplied_emails(creds, user_location):
                 subject = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Subject']
                 subject = subject[0] if subject else None
                 message_date = datetime.fromtimestamp(int(message_details['internalDate'])/1000.0)
-                # Convert message date to user's timezone
-                message_date_with_timezone = message_date.replace(tzinfo=pytz.utc).astimezone(user_timezone).strftime('%Y-%m-%d %H:%M:%S %Z')
+                message_date_with_timezone = message_date.replace(tzinfo=timezone('UTC')).astimezone(timezone('Asia/Kolkata')).strftime('%Y-%m-%d %H:%M:%S %Z')
                 # Check if the email is from the specified domain and not replied
                 if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
                     unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date_with_timezone})
     return unreplied_emails
 
-def build_unreplied_emails_card(emails, user_location):
-    user_timezone = get_user_timezone(user_location)
+def has_been_replied_to(service, thread_id):
+    thread = service.users().threads().get(userId='me', id=thread_id).execute()
+    messages = thread['messages']
+    return len(messages) > 1
+
+def build_unreplied_emails_card(emails):
     card = CardService.newCardBuilder().setHeader(CardService.newCardHeader().setTitle('Emails-Not-Replied'))
     # Add sections for each unreplied email
     for email in emails:
@@ -82,4 +71,3 @@ def build_unreplied_emails_card(emails, user_location):
             .addWidget(CardService.newTextParagraph().setText(f'Date: {email["date"]}'))
         card.addSection(section)
     return card.build()
-
