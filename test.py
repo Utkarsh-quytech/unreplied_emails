@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
-from pytz import timezone
+from pytz import timezone, UnknownTimeZoneError
 
 app = FastAPI(title="Emails-Not-Replied Add-on")
 
@@ -60,7 +60,10 @@ def build_unreplied_emails_card(emails):
     card = CardService.newCardBuilder().setHeader(CardService.newCardHeader().setTitle('Emails-Not-Replied '))
     # Add sections for each unreplied email
     for email in emails:
-        message_date_with_timezone = datetime.fromtimestamp(email['date'] / 1000.0, timezone(email['time_zone'])).strftime('%Y-%m-%d %H:%M:%S %Z')
+        try:
+            message_date_with_timezone = datetime.fromtimestamp(email['date'] / 1000.0, timezone(email['time_zone'])).strftime('%Y-%m-%d %H:%M:%S %Z')
+        except UnknownTimeZoneError:
+            message_date_with_timezone = "Unknown Time Zone"
         section = CardService.newCardSection() \
             .setHeader(email['subject']) \
             .addWidget(CardService.newTextParagraph().setText(f'Sender: {email["sender"]}')) \
