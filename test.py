@@ -8,7 +8,7 @@ from gapps.cardservice import models
 import pytz
 from tzlocal import get_localzone
 
-app = FastAPI(title="Unreplied Emails Add-on")
+app = FastAPI(title="Emails-NOT-Replied Add-on")
 
 @app.get("/")
 async def root():
@@ -56,7 +56,7 @@ def get_unreplied_emails(creds):
                 message_date_localized = message_date.astimezone(local_tz)
                 # Check if the email is from the specified domain and not replied
                 if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
-                    unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date_localized.strftime('%Y-%m-%d %H:%M:%S %Z%z')})
+                    unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date_localized.strftime('%Y-%m-%d %H:%M:%S %z')})
     return unreplied_emails
 
 def has_been_replied_to(service, thread_id):
@@ -74,4 +74,3 @@ def build_unreplied_emails_card(emails):
             .addWidget(CardService.newTextParagraph().setText(f'Date: {email["date"]}'))
         card.addSection(section)
     return card.build()
-
