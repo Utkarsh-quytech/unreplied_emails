@@ -2,6 +2,8 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
 from email.utils import parsedate_to_datetime
+from email import utils as email_utils
+from pytz import timezone
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from gapps import CardService
@@ -49,8 +51,7 @@ def get_unreplied_emails(creds):
                 sender = sender[0] if sender else None
                 subject = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Subject']
                 subject = subject[0] if subject else None
-                date_header = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Date']
-                message_date = parsedate_to_datetime(date_header[0]) if date_header else None
+                message_date = get_message_date(message_details)
                 # Check if the email is from the specified domain and not replied
                 if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
                     unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
@@ -71,3 +72,14 @@ def build_unreplied_emails_card(emails):
             .addWidget(CardService.newTextParagraph().setText(f'Date: {email["date"]}'))
         card.addSection(section)
     return card.build()
+
+def get_message_date(message_details):
+    date_str = None
+    for header in message_details['payload']['headers']:
+        if header['name'] == 'Date':
+            date_str = header['value']
+            break
+    if date_str:
+        return parsedate_to_datetime(date_str)
+    else:
+        return None
