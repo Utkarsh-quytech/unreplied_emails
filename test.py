@@ -19,7 +19,8 @@ async def root():
 async def homepage(gevent: models.GEvent):
     access_token = gevent.authorizationEventObject.userOAuthToken
     creds = Credentials(access_token)
-    page = send_reminder(creds)
+    user_location = gevent.authorizationEventObject.userLocation  # Assuming userLocation is sent in the request
+    page = send_reminder(creds, user_location)
     return page
 
 def send_reminder(creds, user_location):
