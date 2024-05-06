@@ -1,11 +1,10 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
-from gapps.cardservice.utilities import decode_email
 
 app = FastAPI(title="Unreplied Emails Add-on")
 
@@ -14,59 +13,45 @@ async def root():
     return {"message": "Welcome to Unreplied Emails Add-on"}
 
 @app.post("/homepage", response_class=JSONResponse)
-async def homepage(gevent: models.GEvent, background_tasks: BackgroundTasks):
+async def homepage(gevent: models.GEvent):
     access_token = gevent.authorizationEventObject.userOAuthToken
-    email = decode_email(gevent.authorizationEventObject.userIdToken)
     creds = Credentials(access_token)
-    background_tasks.add_task(send_reminder, email, creds)
-    return {"message": "Processing the request in the background"}
+    page = send_reminder(creds)
+    return page
 
-def send_reminder(email, creds):
-    unreplied_emails = get_unreplied_emails(email, creds)
+def send_reminder(creds):
+    unreplied_emails = get_unreplied_emails(creds)
     if unreplied_emails:
         # Build the card for unreplied emails
         card = build_unreplied_emails_card(unreplied_emails)
-        # Send the card or process it further as needed
-        # For demonstration purposes, we'll print the card data
-        print(card)
+        return card
     else:
         # Return a card indicating no unreplied emails
-        card = CardService.newCardBuilder() \
+        return CardService.newCardBuilder() \
             .setHeader(CardService.newCardHeader().setTitle('No Unreplied Emails')) \
             .build()
-        # Send the card or process it further as needed
-        # For demonstration purposes, we'll print the card data
-        print(card)
 
-def get_unreplied_emails(email, creds):
+def get_unreplied_emails(creds):
     unreplied_emails = []
     service = build('gmail', 'v1', credentials=creds)
 
     # Get unreplied incoming emails
-    next_page_token = None
-    while True:
-        threads = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=100, pageToken=next_page_token).execute()
-        if 'threads' in threads:
-            for thread in threads['threads']:
-                thread_id = thread['id']
-                thread_messages = service.users().threads().get(userId='me', id=thread_id).execute()
-                for message in thread_messages['messages']:
-                    message_id = message['id']
-                    message_details = service.users().messages().get(userId='me', id=message_id).execute()
-                    sender = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'From']
-                    sender = sender[0] if sender else None
-                    subject = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Subject']
-                    subject = subject[0] if subject else None
-                    message_date = datetime.fromtimestamp(int(message_details['internalDate'])/1000.0)
-                    # Check if the email is from the specified domain and not replied
-                    if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
-                        unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
-            # Check if there are more pages
-            next_page_token = threads.get('nextPageToken')
-            if not next_page_token:
-                break  # No more pages, exit the loop
-        else:
-            break  # No threads found, exit the loop
+    threads = service.users().threads().list(userId='me', q='-is:chats -is:sent -is:draft -in:trash', maxResults=20).execute()
+    if 'threads' in threads:
+        for thread in threads['threads']:
+            thread_id = thread['id']
+            thread_messages = service.users().threads().get(userId='me', id=thread_id).execute()
+            for message in thread_messages['messages']:
+                message_id = message['id']
+                message_details = service.users().messages().get(userId='me', id=message_id).execute()
+                sender = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'From']
+                sender = sender[0] if sender else None
+                subject = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Subject']
+                subject = subject[0] if subject else None
+                message_date = datetime.fromtimestamp(int(message_details['internalDate'])/1000.0)
+                # Check if the email is from the specified domain and not replied
+                if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
+                    unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
     return unreplied_emails
 
 def has_been_replied_to(service, thread_id):
