@@ -49,7 +49,8 @@ def get_unreplied_emails(creds):
                 sender = sender[0] if sender else None
                 subject = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Subject']
                 subject = subject[0] if subject else None
-                message_date = parsedate_to_datetime(message_details['payload']['headers'][0]['value'])
+                date_header = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Date']
+                message_date = parsedate_to_datetime(date_header[0]) if date_header else None
                 # Check if the email is from the specified domain and not replied
                 if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
                     unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date})
