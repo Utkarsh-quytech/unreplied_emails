@@ -62,10 +62,16 @@ def parse_date_from_string(date_str):
         return parsedate_to_datetime(date_str)
     except TypeError:
         # Fallback to parsing without time zone
-        return datetime.strptime(date_str, "%a, %d %b %Y %H:%M:%S %z").replace(tzinfo=None)
+        try:
+            # Try parsing without time zone using a flexible approach
+            return datetime.strptime(date_str, "%a, %d %b %Y %H:%M:%S").replace(tzinfo=None)
+        except ValueError:
+            # If parsing fails, return None
+            return None
     except:
         # Fallback for any other parsing errors
         return None
+
 
 def has_been_replied_to(service, thread_id):
     thread = service.users().threads().get(userId='me', id=thread_id).execute()
