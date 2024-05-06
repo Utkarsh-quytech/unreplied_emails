@@ -52,13 +52,27 @@ def get_unreplied_emails(creds):
                 subject = subject[0] if subject else None
                 message_date = datetime.fromtimestamp(int(message_details['internalDate'])/1000.0)
                 # Get the time zone of the email
-                timezone_str = message_details['payload']['headers'][8]['value']  # Assuming time zone is at index 8
-                tz = timezone(timezone_str)
-                message_date = message_date.astimezone(tz)
+                timezone_str = next((header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Date'), None)
+                if timezone_str:
+                    timezone_index = timezone_str.rfind('(')
+                    if timezone_index != -1:
+                        timezone_str = timezone_str[timezone_index + 1:].replace(')', '')
+                        try:
+                            tz = timezone(timezone_str)
+                            message_date = message_date.astimezone(tz)
+                        except pytz.UnknownTimeZoneError:
+                            # Default to UTC if the timezone is unknown
+                            tz = timezone('UTC')
+                            message_date = message_date.astimezone(tz)
+                    else:
+                        # Default to UTC if no timezone found in the Date header
+                        tz = timezone('UTC')
+                        message_date = message_date.astimezone(tz)
                 # Check if the email is from the specified domain and not replied
                 if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
                     unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date.strftime("%Y-%m-%d %H:%M:%S %Z")})
     return unreplied_emails
+
 
 def has_been_replied_to(service, thread_id):
     thread = service.users().threads().get(userId='me', id=thread_id).execute()
