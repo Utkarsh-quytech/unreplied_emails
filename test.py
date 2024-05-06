@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
-from pytz import timezone
+from pytz import timezone, UnknownTimeZoneError
 
 app = FastAPI(title="Unreplied Emails Add-on")
 
