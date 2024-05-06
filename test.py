@@ -1,11 +1,11 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime
+from pytz import timezone  # Import pytz library for handling timezones
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from gapps import CardService
 from gapps.cardservice import models
-from pytz import timezone, UnknownTimeZoneError
 
 app = FastAPI(title="Unreplied Emails Add-on")
 
@@ -32,7 +32,6 @@ def send_reminder(creds):
             .setHeader(CardService.newCardHeader().setTitle('No Unreplied Emails')) \
             .build()
 
-
 def get_unreplied_emails(creds):
     unreplied_emails = []
     service = build('gmail', 'v1', credentials=creds)
@@ -51,28 +50,11 @@ def get_unreplied_emails(creds):
                 subject = [header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Subject']
                 subject = subject[0] if subject else None
                 message_date = datetime.fromtimestamp(int(message_details['internalDate'])/1000.0)
-                # Get the time zone of the email
-                timezone_str = next((header['value'] for header in message_details['payload']['headers'] if header['name'] == 'Date'), None)
-                if timezone_str:
-                    timezone_index = timezone_str.rfind('(')
-                    if timezone_index != -1:
-                        timezone_str = timezone_str[timezone_index + 1:].replace(')', '')
-                        try:
-                            tz = timezone(timezone_str)
-                            message_date = message_date.astimezone(tz)
-                        except pytz.UnknownTimeZoneError:
-                            # Default to UTC if the timezone is unknown
-                            tz = timezone('UTC')
-                            message_date = message_date.astimezone(tz)
-                    else:
-                        # Default to UTC if no timezone found in the Date header
-                        tz = timezone('UTC')
-                        message_date = message_date.astimezone(tz)
+                message_date_with_timezone = message_date.replace(tzinfo=timezone('UTC')).astimezone(timezone('Asia/Kolkata')).strftime('%Y-%m-%d %H:%M:%S %Z')
                 # Check if the email is from the specified domain and not replied
                 if sender and '@quytech.com' in sender and not has_been_replied_to(service, thread_id):
-                    unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date.strftime("%Y-%m-%d %H:%M:%S %Z")})
+                    unreplied_emails.append({'sender': sender, 'subject': subject, 'date': message_date_with_timezone})
     return unreplied_emails
-
 
 def has_been_replied_to(service, thread_id):
     thread = service.users().threads().get(userId='me', id=thread_id).execute()
