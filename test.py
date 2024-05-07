@@ -14,10 +14,10 @@ async def root():
     return {"message": "Welcome to Unreplied Emails Add-on"}
 
 @app.post("/homepage", response_class=JSONResponse)
-async def homepage(gevent: models.GEvent):
+async def homepage(gevent: models.GEvent, user_timezone: str):
     access_token = gevent.authorizationEventObject.userOAuthToken
     creds = Credentials(access_token)
-    page = send_reminder(creds, gevent.timezone)
+    page = send_reminder(creds, user_timezone)
     return page
 
 def send_reminder(creds, user_timezone):
